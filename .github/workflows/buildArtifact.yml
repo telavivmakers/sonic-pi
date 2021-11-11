@@ -256,9 +256,9 @@ jobs:
     - name: zip the release
       working-directory: ${{github.workspace}}/install/windows
       run: |
-        ls -lR
+        Get-ChildItem -Recurse
         cd ${{github.workspace}}
-        ls -lR
+        Get-ChildItem -Recurse
         #7z.exe a sonic_pi.zip .\app\ .\etc\
       if: matrix.os == 'windows-latest'
         
