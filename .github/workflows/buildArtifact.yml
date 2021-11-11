@@ -178,7 +178,14 @@ jobs:
     - name: Do build
       working-directory: ${{github.workspace}}/app/build
       run: cmake --build . --config ${{ matrix.build_type }}
-
+      
+    # installer pack
+    - name: Do pack
+      working-directory: ${{github.workspace}}/install/windows
+      run: |
+       $env:Path += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+       .\install.bat
+       
     - name: BEAM Tests Windows
       shell: cmd
       working-directory: ${{github.workspace}}/app/server/beam/tau
@@ -259,7 +266,7 @@ jobs:
         Get-ChildItem -Recurse
         cd ${{github.workspace}}
         Get-ChildItem -Recurse
-        #7z.exe a sonic_pi.zip .\app\ .\etc\
+        7z.exe a sonic_pi.zip .\app\ .\etc\
       if: matrix.os == 'windows-latest'
         
     - name: artifacts-windows
