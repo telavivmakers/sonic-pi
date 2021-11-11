@@ -257,3 +257,27 @@ jobs:
           name: sonic-pi_${{matrix.title}}_${{matrix.os}}_${{matrix.arch}}_${{matrix.build_type}}
           path: ${{github.workspace}}/app/build/gui/qt/sonic-pi
           if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+          
+    # needed as the upload is slow if left to github
+    # sadly does have the outcome of a "double zip' at download
+    # see https://github.com/actions/upload-artifact/issues/39
+    - name: zip the release
+      working-directory: ${{github.workspace}}/install/windows
+      run: 7z.exe a sonic_pi.zip .\app\ .\etc\
+      if: matrix.os == 'windows-latest'
+        
+    - name: artifacts-windows
+      uses: actions/upload-artifact@v2.2.4
+      with:
+          name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}
+          path: |
+            ${{github.workspace}}/install/windows/sonic_pi.zip
+      if: matrix.os == 'windows-latest'
+    
+    - name: artifacts-windows-installer
+      uses: actions/upload-artifact@v2.2.4
+      with:
+          name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}_installer
+          path: |
+            ${{github.workspace}}/install/windows/wix/Sonic-Pi.msi
+      if: matrix.os == 'windows-latest'
