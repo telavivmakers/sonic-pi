@@ -1,4 +1,4 @@
-name: Build ubuntu/macOx
+name: Build with win artifact
 
 on:
   # Do it on every push or PR on these branches
@@ -22,8 +22,8 @@ jobs:
            - { title: "Linux", os: "ubuntu-latest", cc: "clang", arch: "x64", build_type: "Debug" }
            - { title: "Linux", os: "ubuntu-latest", cc: "gcc", arch: "x64", build_type: "Release" }
            - { title: "Linux", os: "ubuntu-latest", cc: "gcc", arch: "x64", build_type: "Debug" }
-           #- { title: "Windows", os: "windows-latest", cc: "vs2019", arch: "x64", build_type: "Release" }
-           #- { title: "Windows", os: "windows-latest", cc: "vs2019", arch: "x64", build_type: "Debug" }
+           - { title: "Windows", os: "windows-latest", cc: "vs2019", arch: "x64", build_type: "Release" }
+           - { title: "Windows", os: "windows-latest", cc: "vs2019", arch: "x64", build_type: "Debug" }
            - { title: "Mac", os: "macos-latest", cc: "clang", arch: "x64", build_type: "Release" }
            - { title: "Mac", os: "macos-latest", cc: "clang", arch: "x64", build_type: "Debug" }
 
@@ -249,14 +249,6 @@ jobs:
           name: Logs_${{matrix.title}}_${{matrix.cc}}_${{matrix.arch}}_${{matrix.build_type}}
           path: |
             ~/.sonic-pi/log/*.log
-          
-          
-    - name: artifacts-osx/linux
-      uses: actions/upload-artifact@v2.2.4
-      with:
-          name: sonic-pi_${{matrix.title}}_${{matrix.os}}_${{matrix.arch}}_${{matrix.build_type}}
-          path: ${{github.workspace}}/app/build/gui/qt/sonic-pi
-          if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
           
     # needed as the upload is slow if left to github
     # sadly does have the outcome of a "double zip' at download
