@@ -1,4 +1,4 @@
-this is the working branch for [TAMIs](telavivmakers.org/music) sonic pi workshops, including [build artifacts](https://github.com/telavivmakers/sonic-pi/actions).   
+this is the working branch for [TAMIs](https://telavivmakers.org/music) sonic pi workshops, including [build artifacts](https://github.com/telavivmakers/sonic-pi/actions).   
 consider supporting the development of sonic-pi!  
 
                                            
