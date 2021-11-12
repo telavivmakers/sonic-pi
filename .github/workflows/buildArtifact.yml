@@ -4,6 +4,9 @@ on:
   # Do it on every push or PR on these branches
   push:
     branches: [ dev, stable ]
+    #disregard readme changes for this action
+    paths-ignore:
+      - '**/README.md'
   pull_request:
     branches: [ dev, stable ]
   # Do build on demand
