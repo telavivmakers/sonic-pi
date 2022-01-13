@@ -35,10 +35,12 @@
 #include <QPlainTextEdit>
 #include <QScrollBar>
 #include <QShortcut>
+#include <QSplashScreen>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QStyle>
 #include <QTextBrowser>
+#include <QWebEngineProfile>
 #include <QTextStream>
 #include <QToolBar>
 #include <QToolButton>
@@ -94,7 +96,7 @@ using namespace std::chrono;
 
 using namespace SonicPi;
 
-MainWindow::MainWindow(QApplication& app, QMainWindow* splash)
+MainWindow::MainWindow(QApplication& app, QSplashScreen* splash)
 {
     app.installEventFilter(this);
     app.processEvents();
@@ -674,6 +676,11 @@ void MainWindow::setupWindowStructure()
     connect(right, SIGNAL(activated()), this, SLOT(docNextTab()));
 
     phxView = new QWebEngineView(this);
+    phxProfile = new QWebEngineProfile(this);
+    phxPage = new QWebEnginePage(phxProfile, phxView);
+    phxView->setPage(phxPage);
+    phxView->setContextMenuPolicy(Qt::NoContextMenu);
+
     docPane = new QTextBrowser;
     QSizePolicy policy = docPane->sizePolicy();
     policy.setHorizontalStretch(QSizePolicy::Maximum);
@@ -1096,7 +1103,7 @@ QString MainWindow::rootPath()
 
 void MainWindow::splashClose()
 {
-  splash->close();
+  splash->finish(this);
 }
 
 void MainWindow::showWindow()
@@ -1129,6 +1136,11 @@ void MainWindow::midiEnabledMenuChanged()
 void MainWindow::oscServerEnabledMenuChanged()
 {
     piSettings->osc_server_enabled = enableOSCServerAct->isChecked();
+    piSettings->osc_public = enableOSCServerAct->isChecked() && allowRemoteOSCAct->isChecked();
+    if (!enableOSCServerAct->isChecked()) {
+        allowRemoteOSCAct->setChecked(false);
+        piSettings->osc_public = false;
+    }
     emit settingsChanged();
     toggleOSCServer();
 }
@@ -3200,8 +3212,6 @@ void MainWindow::restoreWindows()
  */
 void MainWindow::readSettings()
 {
-    std::cout << "[GUI] - reading settings" << std::endl;
-
     // Read in preferences from previous session
     piSettings->language = gui_settings->value("prefs/language", "system_language").toString();
     piSettings->show_buttons = gui_settings->value("prefs/show-buttons", true).toBool();
@@ -3386,6 +3396,12 @@ void MainWindow::onExitCleanup()
     {
         std::cout << "[GUI] - shutting down scope..." << std::endl;
         scopeWindow->ShutDown();
+    }
+
+    if (phxView)
+    {
+        std::cout << "[GUI] - shutting down PhX view..." << std::endl;
+        phxView->deleteLater();
     }
 
     if (m_spClient)
@@ -3730,6 +3746,7 @@ void MainWindow::resetMidi()
 void MainWindow::toggleOSCServer(int silent)
 {
     QSignalBlocker blocker(enableOSCServerAct);
+    allowRemoteOSCAct->setEnabled(piSettings->osc_server_enabled);
     if (piSettings->osc_server_enabled)
     {
         enableOSCServerAct->setChecked(true);
