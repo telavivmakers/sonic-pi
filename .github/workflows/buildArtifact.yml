@@ -190,7 +190,7 @@ jobs:
        $env:Path += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
        .\install.bat
       if: matrix.os == 'windows-latest'
-       
+      
     - name: BEAM Tests Windows
       shell: cmd
       working-directory: ${{github.workspace}}/app/server/beam/tau
@@ -281,7 +281,7 @@ jobs:
           path: |
             ${{github.workspace}}/install/windows/sonic_pi.zip
       if: matrix.os == 'windows-latest'
-    
+      
     - name: artifacts-windows-installer
       uses: actions/upload-artifact@v2.2.4
       with:
@@ -289,3 +289,11 @@ jobs:
           path: |
             ${{github.workspace}}/install/windows/wix/Sonic-Pi.msi
       if: matrix.os == 'windows-latest'
+    
+    - name: artifacts-linux
+      uses: actions/upload-artifact@v2.2.4
+      with:
+          name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}
+          path: |
+            ${{github.workspace}}/app/build
+      if: matrix.os == 'ubuntu-latest'
