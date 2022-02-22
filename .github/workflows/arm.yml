@@ -18,9 +18,9 @@ jobs:
     runs-on: [self-hosted, linux, ARM64]
     name: Build on self hosted aarch64
     steps:
-      - uses: actions/checkout@v2.1.0
-      - name: Debugging with tmate
-        uses: mxschmitt/action-tmate@v3.6
+#       - uses: actions/checkout@v2.1.0
+#       - name: Debugging with tmate
+#         uses: mxschmitt/action-tmate@v3.6
      
       - uses: actions/cache@v2
         with:
