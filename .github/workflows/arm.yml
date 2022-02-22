@@ -28,12 +28,21 @@ jobs:
           key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
           restore-keys: | 
             ${{ runner.os }}-gems-
-
+            
+      # Install gems Linux/Max - needs sudo
+      - name: Setup Ruby Gems
+        working-directory: ${{github.workspace}}/app
+        run: |
+            sudo gem install win32-process
+            sudo gem install rugged --version 0.27.1
+            sudo gem install ffi
+            sudo gem install test-unit
+          
       # run the prebuild and config scripts  
       - name: run prebuild script
         working-directory: ${{github.workspace}}/app
         run: |
-            . /home/nvidia/.asdf/installs/erlang/24.0.6/activate
+            #. /home/nvidia/.asdf/installs/erlang/24.0.6/activate
             ./pi-prebuild.sh
       
       - name: run config script
