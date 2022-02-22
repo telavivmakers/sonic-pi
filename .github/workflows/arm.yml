@@ -1,5 +1,16 @@
+name: arm64 sonic pi
+
 on:
- workflow_dispatch:
+  # Do it on every push or PR on these branches
+  push:
+    branches: [  ]
+    #disregard readme changes for this action
+    paths-ignore:
+      - '**/README.md'
+  pull_request:
+    branches: [  ]
+  # Do build on demand
+  workflow_dispatch:
 
 
 jobs:
