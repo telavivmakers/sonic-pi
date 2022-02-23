@@ -48,7 +48,7 @@ jobs:
       - name: run config script
         working-directory: ${{github.workspace}}/app
         run: |
-            . /home/nvidia/.asdf/installs/erlang/24.0.6/activate
+            #. /home/nvidia/.asdf/installs/erlang/24.0.6/activate
             ./pi-config.sh
             
       - name: run build
