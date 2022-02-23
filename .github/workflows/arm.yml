@@ -28,7 +28,13 @@ jobs:
           key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
           restore-keys: | 
             ${{ runner.os }}-gems-
-            
+      
+      #install cmake
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
+        with:
+          cmake-version: '3.16.x'
+      
       # Install gems Linux/Max - needs sudo
       - name: Setup Ruby Gems
         working-directory: ${{github.workspace}}/app
