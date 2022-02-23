@@ -3,47 +3,43 @@ name: arm64 sonic pi
 on:
   # Do it on every push or PR on these branches
   push:
-    branches: [  ]
+    branches: []
     #disregard readme changes for this action
     paths-ignore:
-      - '**/README.md'
+      - "**/README.md"
   pull_request:
-    branches: [  ]
+    branches: []
   # Do build on demand
   workflow_dispatch:
-
 
 jobs:
   armv8_job:
     runs-on: [self-hosted, linux, ARM64]
     name: Build on self hosted aarch64
     steps:
-#       - uses: actions/checkout@v2.1.0
-#       - name: Debugging with tmate
-#         uses: mxschmitt/action-tmate@v3.6
-     
+
       - uses: actions/cache@v2
         with:
           path: ${{github.workspace}}/app/server/ruby/vendor
           key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
-          restore-keys: | 
+          restore-keys: |
             ${{ runner.os }}-gems-
-      
+
       #install cmake
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.12
         with:
-          cmake-version: '3.16.x'
-      
+          cmake-version: "3.16.x"
+
       # Install gems Linux/Max - needs sudo
       - name: Setup Ruby Gems
         working-directory: ${{github.workspace}}/app
         run: |
-            sudo gem install win32-process
-            sudo gem install rugged --version 0.27.1
-            sudo gem install ffi
-            sudo gem install test-unit
-            
+          sudo gem install win32-process
+          sudo gem install rugged --version 0.27.1
+          sudo gem install ffi
+          sudo gem install test-unit
+
       # Keep a cached copy of the Qt build so we can speed up subsequent builds
       - name: Cache Qt
         id: cache-qt6
@@ -57,45 +53,42 @@ jobs:
         uses: jurplel/install-qt-action@v2
         with:
           modules: "qtwebenginewidgets"
-          version: '6.2.2'
+          version: "6.2.2"
           cached: ${{ steps.cache-qt6.outputs.cache-hit }}
 
         # Install Elixir on Ubuntu
       - name: Linux Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: '24'
-          elixir-version: '1.12'
-        
-      # run the prebuild and config scripts  
-      - name: run prebuild script
-        working-directory: ${{github.workspace}}/app
-        run: |
-            ./pi-prebuild.sh
-      
-      - name: run config script
-        working-directory: ${{github.workspace}}/app
-        run: |
-            ./pi-config.sh
-            
-      - name: run build
-        working-directory: ${{github.workspace}}/app/build
-        run: |
-            cmake --build . --config Release
+          otp-version: "24"
+          elixir-version: "1.12"
 
-      # Set an output parameter `uname` for use in subsequent steps
-      - run: |
-         uname -a
-         echo ::set-output name=uname::$(uname -a)
+      # # run the prebuild and config scripts
+      # - name: run prebuild script
+      #   working-directory: ${{github.workspace}}/app
+      #   run: |
+      #     ./pi-prebuild.sh
 
-    
-      - name: Ruby Tests (Mac/Linux)
-        working-directory: ${{github.workspace}}/app/server/ruby
-        run: rake test 
-        
-      - name: artifacts
-        uses: actions/upload-artifact@v2.2.4
-        with:
-            name: sonic-pi_arm8_release
-            path: ${{github.workspace}}/app/build/gui/qt/sonic-pi
-      
+      # - name: run config script
+      #   working-directory: ${{github.workspace}}/app
+      #   run: |
+      #     ./pi-config.sh
+
+      # - name: run build
+      #   working-directory: ${{github.workspace}}/app/build
+      #   run: |
+      #     cmake --build . --config Release
+      # # Set an output parameter `uname` for use in subsequent steps
+      # - run: |
+      #     uname -a
+      #     echo ::set-output name=uname::$(uname -a)
+
+      # - name: Ruby Tests (Mac/Linux)
+      #   working-directory: ${{github.workspace}}/app/server/ruby
+      #   run: rake test
+
+      # - name: artifacts
+      #   uses: actions/upload-artifact@v2.2.4
+      #   with:
+      #     name: sonic-pi_arm8_release
+      #     path: ${{github.workspace}}/app/build/gui/qt/sonic-pi
