@@ -25,9 +25,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gems-
             
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.10' 
+      - name: Set up Python in a virtual env
+        run: |
+          if [[ `uname` != "Darwin" ]]; then sudo apt -y install python3-venv; fi
+          python3 -m venv .env
+      - name: Install dependencies
+        run: |
+          source .env/bin/activate
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       #install cmake
       - name: Setup cmake
