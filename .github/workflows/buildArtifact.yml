@@ -267,14 +267,15 @@ jobs:
       uses: actions/upload-artifact@v2.2.4
       with:
           name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}_installer
+          if-no-files-found: warn
           path: |
             ${{github.workspace}}/install/windows/wix/Sonic-Pi.msi
       if: matrix.os == 'windows-latest'
       
     - name: zip action (Linux/Mac)
       uses: papeloto/action-zip@v1
-      with:
-           files: ${{github.workspace}}/app/build
+      with: 
+           files: ${{github.workspace}}/app/build/
            dest: sonic_pi.zip
            
     - name: artifacts (Linux/Mac)
@@ -284,3 +285,4 @@ jobs:
           path: |
             path: ${{ github.workspace }}/sonic_pi.zip
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      if-no-files-found: warn
