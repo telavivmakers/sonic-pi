@@ -271,20 +271,11 @@ jobs:
           path: |
             ${{github.workspace}}/install/windows/wix/Sonic-Pi.msi
       if: matrix.os == 'windows-latest'
-
-    - name: sanity (mac/linux)
-      working-directory: ${{github.workspace}}
-      run: |
-       $pwd
-       sudo apt-get install tree -y
-       tree ${{github.workspace}} --filelimit=5
-      if: matrix.os == 'ubuntu-latest'
            
     - name: zip action (Linux/Mac)
-      uses: papeloto/action-zip@v1
-      with: 
-           files: app/build/
-           dest: sonic_pi.zip
+      run: |
+        zip -r ${{github.workspace}}/sonic_pi.zip ${{github.workspace}}/app/build
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
            
     - name: artifacts (Linux/Mac)
       uses: actions/upload-artifact@v2.2.4
