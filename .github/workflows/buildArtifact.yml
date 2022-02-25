@@ -29,7 +29,9 @@ jobs:
            #- { title: "Windows", os: "windows-latest", cc: "vs2019", arch: "x64", build_type: "Debug" }
            - { title: "Mac", os: "macos-latest", cc: "clang", arch: "x64", build_type: "Release" }
            #- { title: "Mac", os: "macos-latest", cc: "clang", arch: "x64", build_type: "Debug" }
-
+    permissions:
+      contents: write
+      
     steps:
 
     # Get the code
@@ -260,27 +262,7 @@ jobs:
           name: Logs_${{matrix.title}}_${{matrix.cc}}_${{matrix.arch}}_${{matrix.build_type}}
           path: |
             ~/.sonic-pi/log/*.log
-          
-    # needed as the upload is slow if left to github
-    # sadly does have the outcome of a "double zip' at download
-    # see https://github.com/actions/upload-artifact/issues/39
-    - name: zip the release
-      working-directory: ${{github.workspace}}/install/windows
-      run: |
-        Get-ChildItem -Recurse
-        cd ${{github.workspace}}
-        Get-ChildItem -Recurse
-        7z.exe a sonic_pi.zip .\app\ .\etc\
-      if: matrix.os == 'windows-latest'
-        
-    - name: artifacts (Windows)
-      uses: actions/upload-artifact@v2.2.4
-      with:
-          name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}
-          path: |
-            ${{github.workspace}}/install/windows/sonic_pi.zip
-      if: matrix.os == 'windows-latest'
-      
+            
     - name: artifacts-installer (Windows)
       uses: actions/upload-artifact@v2.2.4
       with:
@@ -288,11 +270,17 @@ jobs:
           path: |
             ${{github.workspace}}/install/windows/wix/Sonic-Pi.msi
       if: matrix.os == 'windows-latest'
-    
+      
+    - name: zip action (Linux/Mac)
+      uses: papeloto/action-zip@v1
+      with:
+           files: ${{github.workspace}}/app/build
+           dest: sonic_pi.zip
+           
     - name: artifacts (Linux/Mac)
       uses: actions/upload-artifact@v2.2.4
       with:
           name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}
           path: |
-            ${{github.workspace}}/app/build
+            path: ${{ github.workspace }}/sonic_pi.zip
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
