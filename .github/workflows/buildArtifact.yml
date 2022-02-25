@@ -282,7 +282,7 @@ jobs:
       uses: actions/upload-artifact@v2.2.4
       with:
           name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}
+          if-no-files-found: warn
           path: |
             path: ${{ github.workspace }}/sonic_pi.zip
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-      if-no-files-found: warn
