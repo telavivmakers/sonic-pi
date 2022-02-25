@@ -273,7 +273,7 @@ jobs:
         7z.exe a sonic_pi.zip .\app\ .\etc\
       if: matrix.os == 'windows-latest'
         
-    - name: artifacts-windows
+    - name: artifacts (Windows)
       uses: actions/upload-artifact@v2.2.4
       with:
           name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}
@@ -281,7 +281,7 @@ jobs:
             ${{github.workspace}}/install/windows/sonic_pi.zip
       if: matrix.os == 'windows-latest'
       
-    - name: artifacts-windows-installer
+    - name: artifacts-installer (Windows)
       uses: actions/upload-artifact@v2.2.4
       with:
           name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}_installer
@@ -289,10 +289,10 @@ jobs:
             ${{github.workspace}}/install/windows/wix/Sonic-Pi.msi
       if: matrix.os == 'windows-latest'
     
-    - name: artifacts-linux
+    - name: artifacts (Linux/Mac)
       uses: actions/upload-artifact@v2.2.4
       with:
           name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}
           path: |
             ${{github.workspace}}/app/build
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
