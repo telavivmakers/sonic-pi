@@ -277,8 +277,8 @@ jobs:
       run: |
        $pwd
        sudo apt-get install tree -y
-       tree ${{github.workspace}}
-      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+       tree ${{github.workspace}} --filelimit=5
+      if: matrix.os == 'ubuntu-latest'
            
     - name: zip action (Linux/Mac)
       uses: papeloto/action-zip@v1
