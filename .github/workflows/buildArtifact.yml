@@ -275,8 +275,18 @@ jobs:
     - name: zip action (Linux/Mac)
       run: |
         zip -r ${{github.workspace}}/sonic_pi.zip ${{github.workspace}}/app/build
+        ls -R /home/runner/work > ${{github.workspace}}/ls.log
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-           
+      
+    - name: uplaod ls (Linux/Mac)
+      uses: actions/upload-artifact@v2.2.4
+      with:
+          name: sonic-pi_${{matrix.title}}_${{matrix.arch}}_${{matrix.build_type}}_log
+          if-no-files-found: warn
+          path: |
+            path: ${{github.workspace}}/ls.log
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'     
+      
     - name: artifacts (Linux/Mac)
       uses: actions/upload-artifact@v2.2.4
       with:
