@@ -307,6 +307,39 @@ void OscHandler::oscMessage(std::vector<char> buffer)
                 LOG(ERR, "Unhandled OSC msg /runs/all-completed ");
             }
         }
+        else if (msg->match("/link-num-peers"))
+        {
+          int numPeers;
+          if(msg->arg().popInt32(numPeers).isOkNoMoreArgs())
+          {
+            m_pClient->ActiveLinks(numPeers);
+            LOG(DBG, "/link-num-peers: " << numPeers);
+          }
+          else
+          {
+            LOG(ERR, "Unhandled OSC msg /link-num-peers");
+          }
+        }
+        else if (msg->match("/link-bpm"))
+        {
+          float bpmf;
+          if(msg->arg().popFloat(bpmf).isOkNoMoreArgs())
+          {
+
+            double bpm = (double) bpmf;
+            if(bpm < 20) {
+              bpm = 20.0 ;
+            } else if(bpm > 999) {
+              bpm = 999.0 ;
+            }
+            m_pClient->BPM(bpm);
+            LOG(DBG, "/link-bpm: " << bpm);
+          }
+          else
+          {
+            LOG(ERR, "Unhandled OSC msg /link-bpm");
+          }
+        }
         else
         {
             LOG(ERR, "Unhandled OSC message: " << msg->addressPattern());

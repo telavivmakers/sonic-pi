@@ -47,6 +47,16 @@ class APIClient : public IAPIClient
     {
         std::cout << info.content;
     }
+
+    virtual void ActiveLinks(const int numLinks) override
+    {
+        std::cout << numLinks;
+    }
+
+    virtual void BPM(const double bpm) override
+    {
+        std::cout << bpm;
+    }
 };
 
 TEST_CASE("Init", "API")

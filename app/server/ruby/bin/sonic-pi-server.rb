@@ -187,7 +187,7 @@ begin
     osc_server = SonicPi::OSC::TCPServer.new(server_port, use_decoder_cache: true)
   when :udp
     STDOUT.puts "Opening UDP Server to listen to GUI on port: #{server_port}"
-    osc_server = SonicPi::OSC::UDPServer.new(server_port, use_decoder_cache: true)
+    osc_server = SonicPi::OSC::UDPServer.new(server_port, use_decoder_cache: true, name: "Spider API Server")
   end
 rescue Exception => e
   begin
@@ -742,6 +742,10 @@ out_t = Thread.new do
           gui.send("/midi/out-ports", message[:val])
         when :midi_in_ports
           gui.send("/midi/in-ports", message[:val])
+        when :link_num_peers
+          gui.send("/link-num-peers", message[:val])
+        when :link_bpm
+          gui.send("/link-bpm", message[:val])
         when :info
           gui.send("/log/info", message[:style] || 0, message[:val] || "")
         when :syntax_error

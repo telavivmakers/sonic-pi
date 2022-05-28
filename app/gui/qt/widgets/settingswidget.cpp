@@ -28,7 +28,9 @@ SettingsWidget::SettingsWidget(int tau_osc_cues_port, bool i18n, SonicPiSettings
     this->sonicPii18n = sonicPii18n;
     this->available_languages = sonicPii18n->getAvailableLanguages();
     this->tau_osc_cues_port = tau_osc_cues_port;
+    QSizePolicy prefsSizePolicy(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);
 
+    setSizePolicy(prefsSizePolicy) ;
     prefTabs = new QTabWidget();
 
     QGridLayout *grid = new QGridLayout;
@@ -52,27 +54,6 @@ SettingsWidget::SettingsWidget(int tau_osc_cues_port, bool i18n, SonicPiSettings
     QGroupBox *language_prefs_box = createLanguagePrefsTab();
     prefTabs->addTab(language_prefs_box, tr("Language"));
 
-    if (piSettings->language == "system_language") {
-      if (!sonicPii18n->isSystemLanguageAvailable()) {
-          QGroupBox *translation_box = new QGroupBox("Translation");
-          QVBoxLayout *translation_box_layout = new QVBoxLayout;
-          QLabel *go_translate = new QLabel;
-          go_translate->setOpenExternalLinks(true);
-          go_translate->setText(
-                  "Sonic Pi hasn't been translated to " +
-                  QLocale::languageToString(QLocale::system().language()) +
-                  " yet.<br/>" +
-                  "We rely on crowdsourcing to help create and maintain translations.<br/>" +
-                  "<a href=\"https://github.com/sonic-pi-net/sonic-pi/blob/main/TRANSLATION.md\">" +
-                  "Please consider helping to translate Sonic Pi to your language.</a> "
-                  );
-          go_translate->setTextFormat(Qt::RichText);
-          translation_box_layout->addWidget(go_translate);
-          translation_box->setLayout(translation_box_layout);
-
-          grid->addWidget(translation_box, 3, 0, 1, 2);
-      }
-    }
 
     settingsChanged();
     connectAll();
@@ -83,11 +64,6 @@ SettingsWidget::SettingsWidget(int tau_osc_cues_port, bool i18n, SonicPiSettings
  * Destructor
  */
 SettingsWidget::~SettingsWidget() {
-}
-
-QSize SettingsWidget::sizeHint() const
-{
-  return QSize(100, 100);
 }
 
 /**
@@ -209,9 +185,10 @@ QGroupBox* SettingsWidget::createIoPrefsTab() {
     QPushButton *midi_reset_button = new QPushButton(tr("Reset MIDI"));
     midi_reset_button->setFlat(true);
     midi_reset_button->setToolTip(tr("Reset MIDI subsystems \n(Required to detect device changes on macOS)" ));
+    midi_reset_button->setSizePolicy(QSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed));
 
     midi_default_channel_combo = new QComboBox();
-    midi_default_channel_combo->addItem("*");
+    midi_default_channel_combo->addItem("* (" + tr("all") + ")");
     // TODO Loop
     midi_default_channel_combo->addItem("1");
     midi_default_channel_combo->addItem("2");
@@ -234,7 +211,7 @@ QGroupBox* SettingsWidget::createIoPrefsTab() {
     midi_default_channel_combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon) ;
 
     QLabel *midi_default_channel_label = new QLabel;
-    midi_default_channel_label->setText(tr("Default MIDI channel"));
+    midi_default_channel_label->setText(tr("Default MIDI out channel"));
     midi_default_channel_label->setToolTip(tr("Default MIDI Channel to send messages to (* means all)"));
 
     QGridLayout *midi_default_channel_layout = new QGridLayout();
@@ -286,9 +263,11 @@ QGroupBox* SettingsWidget::createIoPrefsTab() {
  */
 QGroupBox* SettingsWidget::createEditorPrefsTab() {
     QGroupBox *editor_box = new QGroupBox();
+    QGroupBox *editor_show_panels_box = new QGroupBox(tr("Show Panels"));
+    editor_show_panels_box->setToolTip(tr("Show and hide information panes such as the scope and log."));
     QGroupBox *editor_display_box = new QGroupBox(tr("Show and Hide"));
     editor_display_box->setToolTip(tr("Configure editor display options."));
-    QGroupBox *editor_look_feel_box = new QGroupBox(tr("Look and Feel"));
+    QGroupBox *editor_look_feel_box = new QGroupBox(tr("Theme"));
     editor_look_feel_box->setToolTip(tr("Configure editor look and feel."));
     QGroupBox *automation_box = new QGroupBox(tr("Automation / Misc"));
     automation_box->setToolTip(tr("Configure automation and other features."));
@@ -313,6 +292,10 @@ QGroupBox* SettingsWidget::createEditorPrefsTab() {
     show_cues->setToolTip(tooltipStrShiftMeta('C', tr("Toggle visibility of cue log which displays internal cues & incoming OSC/MIDI messages.")));
     show_cues->setChecked(true);
 
+    show_metro = new QCheckBox(tr("Show Link metronome controls"));
+    show_metro->setToolTip(tr("Toggle visibility of the Link metronome controls."));
+    show_cues->setChecked(true);
+
     show_buttons = new QCheckBox(tr("Show buttons"));
     show_buttons->setToolTip(tooltipStrShiftMeta('B', tr("Toggle visibility of the control buttons.")));
     show_buttons->setChecked(true);
@@ -321,6 +304,18 @@ QGroupBox* SettingsWidget::createEditorPrefsTab() {
     show_tabs->setToolTip(tr("Toggle visibility of the buffer selection tabs."));
     full_screen = new QCheckBox(tr("Full screen"));
     full_screen->setToolTip(tooltipStrShiftMeta('F', tr("Toggle full screen mode.")));
+
+    show_titles = new QCheckBox(tr("Show titles"));
+    show_titles->setToolTip(tr("Toggle the title visibility for the scope, log, cue and other information panes"));
+    show_titles->setChecked(true);
+
+    hide_menubar_in_fullscreen = new QCheckBox(tr("Hide Menubar in Fullscreen Mode"));
+    hide_menubar_in_fullscreen->setToolTip(tr("Automatically hide the menubar when the app is in full screen mode. Note that the menubar is always visible when not in full screen mode."));
+    hide_menubar_in_fullscreen->setChecked(false);
+
+    show_scopes = new QCheckBox(tr("Show Scopes"));
+    show_scopes->setToolTip(tr("Toggle the visibility of the audio oscilloscopes."));
+
 
     colourModeButtonGroup = new QButtonGroup(this);
     lightModeCheck = new QCheckBox(tr("Light"));
@@ -335,25 +330,37 @@ QGroupBox* SettingsWidget::createEditorPrefsTab() {
     colourModeButtonGroup->addButton(highContrastModeCheck, 4);
 
     QVBoxLayout *editor_display_box_layout = new QVBoxLayout;
+    QVBoxLayout *editor_show_panels_box_layout = new QVBoxLayout;
     QVBoxLayout *editor_box_look_feel_layout = new QVBoxLayout;
     QVBoxLayout *automation_box_layout = new QVBoxLayout;
     QGridLayout *gridEditorPrefs = new QGridLayout;
 
+    editor_show_panels_box_layout->addWidget(show_log);
+    editor_show_panels_box_layout->addWidget(show_cues);
+    editor_show_panels_box_layout->addWidget(show_context);
+    editor_show_panels_box_layout->addWidget(show_metro);
+
     editor_display_box_layout->addWidget(show_line_numbers);
     editor_display_box_layout->addWidget(show_autocompletion);
-    editor_display_box_layout->addWidget(show_context);
-    editor_display_box_layout->addWidget(show_log);
-    editor_display_box_layout->addWidget(show_cues);
     editor_display_box_layout->addWidget(show_buttons);
     editor_display_box_layout->addWidget(show_tabs);
+    editor_display_box_layout->addWidget(show_titles);
+#ifndef Q_OS_MAC
+    // Don't enable this on Mac as macOS autohides the menubar on
+    // fullscreen anyway
+    editor_display_box_layout->addWidget(hide_menubar_in_fullscreen);
+#endif
+
     editor_box_look_feel_layout->addWidget(lightModeCheck);
     editor_box_look_feel_layout->addWidget(darkModeCheck);
     editor_box_look_feel_layout->addWidget(lightProModeCheck);
     editor_box_look_feel_layout->addWidget(darkProModeCheck);
     editor_box_look_feel_layout->addWidget(highContrastModeCheck);
 
+    editor_show_panels_box->setLayout(editor_show_panels_box_layout);
     editor_display_box->setLayout(editor_display_box_layout);
     editor_look_feel_box->setLayout(editor_box_look_feel_layout);
+
 
     automation_box_layout->addWidget(auto_indent_on_run);
     automation_box_layout->addWidget(full_screen);
@@ -382,12 +389,12 @@ QGroupBox* SettingsWidget::createEditorPrefsTab() {
     debug_box_layout->addWidget(clear_output_on_run);
     debug_box->setLayout(debug_box_layout);
 
+    gridEditorPrefs->addWidget(editor_look_feel_box, 0, 0);
+    gridEditorPrefs->addWidget(automation_box, 2, 1);
+    gridEditorPrefs->addWidget(editor_display_box, 1, 0);
+    gridEditorPrefs->addWidget(editor_show_panels_box, 1, 1);
 
-
-    gridEditorPrefs->addWidget(editor_display_box, 0, 0);
-    gridEditorPrefs->addWidget(editor_look_feel_box, 0, 1);
-    gridEditorPrefs->addWidget(automation_box, 1, 1);
-    gridEditorPrefs->addWidget(debug_box, 1, 0);
+    gridEditorPrefs->addWidget(debug_box, 0, 1);
 
 
     editor_box->setLayout(gridEditorPrefs);
@@ -417,6 +424,7 @@ QGroupBox* SettingsWidget::createVisualizationPrefsTab() {
     show_scope_labels = new QCheckBox(tr("Show Scope Labels"));
     show_scope_labels->setToolTip(tr("Toggle the visibility of the labels for the audio oscilloscopes"));
     show_scope_labels->setChecked(true);
+
     scope_box_kinds->setLayout(scope_box_kinds_layout);
     scope_box_kinds->setToolTip(tr("The audio oscilloscope comes in several flavours which may\nbe viewed independently or all together:\n\nLissajous - illustrates the phase relationship between the left and right channels\nMirror Stereo - simple left/right composite wave, with left on top, right on bottom\nMono - shows a combined view of the left and right channels (using RMS)\nSpectrum - shows the sound frequencies as a spectrum, from low to high frequencies\nStereo - shows two independent scopes for left and right channels"));
     scope_box_layout->addWidget(show_scopes);
@@ -449,14 +457,17 @@ QGroupBox* SettingsWidget::createUpdatePrefsTab() {
     QGroupBox *update_box = new QGroupBox(tr("Updates"));
     QSizePolicy updatesPrefSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
     check_updates = new QCheckBox(tr("Check for updates"));
-    update_box->setSizePolicy(updatesPrefSizePolicy);
     check_updates->setToolTip(tr("Toggle automatic update checking.\nThis check involves sending anonymous information about your platform and version."));
     check_updates_now = new QPushButton(tr("Check now"));
     check_updates_now->setFlat(true);
+    check_updates_now->setSizePolicy(QSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed));
     check_updates_now->setToolTip(tr("Force a check for updates now.\nThis check involves sending anonymous information about your platform and version."));
     visit_sonic_pi_net = new QPushButton(tr("Get update"));
+    visit_sonic_pi_net->setSizePolicy(QSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed));
     visit_sonic_pi_net->setToolTip(tr("Visit http://sonic-pi.net to download new version"));
     visit_sonic_pi_net->setVisible(false);
+
+
 
     QGroupBox *update_info_box = new QGroupBox(tr("Update Info"));
     update_info_box->setMaximumWidth(350);
@@ -514,6 +525,25 @@ QGroupBox* SettingsWidget::createLanguagePrefsTab() {
     language_box_layout->addWidget(language_details_label);
     language_box_layout->addWidget(language_info_label);
 
+    if (piSettings->language == "system_language") {
+      if (!sonicPii18n->isSystemLanguageAvailable()) {
+          QGroupBox *translation_box = new QGroupBox("Translation");
+          QLabel *go_translate = new QLabel;
+          go_translate->setOpenExternalLinks(true);
+          go_translate->setText(
+                  "Sonic Pi hasn't been translated to " +
+                  QLocale::languageToString(QLocale::system().language()) +
+                  " yet.<br/>" +
+                  "We rely on crowdsourcing to help create and maintain translations.<br/>" +
+                  "<a href=\"https://github.com/sonic-pi-net/sonic-pi/blob/main/TRANSLATION.md\">" +
+                  "Please consider helping to translate Sonic Pi to your language.</a> "
+                  );
+          go_translate->setTextFormat(Qt::RichText);
+          language_box_layout->addWidget(go_translate);
+      }
+    }
+
+
     language_box->setLayout(language_box_layout);
 
     QGroupBox *language_prefs_box = new QGroupBox();
@@ -537,11 +567,12 @@ void SettingsWidget::updateScopeNames( std::vector<QString> names ) {
     for( auto name : names ) {
         QCheckBox* cb = new QCheckBox( name );
         cb->setChecked( piSettings->isScopeActive(name));
-        scopeSignalMap->setMapping( cb, cb );
         scope_box_kinds_layout->addWidget(cb);
-        connect(cb, SIGNAL(clicked()), scopeSignalMap, SLOT(map()));
+        connect(cb, &QCheckBox::clicked, this, [=]() {
+          toggleScope(cb);
+        });
+
     }
-    connect( scopeSignalMap, SIGNAL(mapped(QWidget*)), this, SLOT(toggleScope(QWidget*)));
 }
 
 void SettingsWidget::updateScopeKindVisibility() {
@@ -556,7 +587,8 @@ void SettingsWidget::updateSelectedUILanguage(QString lang) {
   language_combo->setCurrentIndex(index);
 }
 
-void SettingsWidget::toggleScope( QWidget* qw ) {
+void SettingsWidget::toggleScope( QObject* qo ) {
+  auto qw = (QWidget*) qo;
   QCheckBox* cb = static_cast<QCheckBox*>(qw);
   //QSettings settings(QSettings::IniFormat, QSettings::UserScope,    "sonic-pi.net", "gui-settings");
   //piSettings->setValue("prefs/scope/show-"+cb->text().toLower(), cb->isChecked() );
@@ -564,6 +596,8 @@ void SettingsWidget::toggleScope( QWidget* qw ) {
   piSettings->setScopeState( name, cb->isChecked() );
   emit scopeChanged(name);
 }
+
+
 
 // TODO: Implement real-time language switching
 void SettingsWidget::updateUILanguage(int index) {
@@ -683,6 +717,10 @@ void SettingsWidget::toggleCuesLog() {
     emit showCuesChanged();
 }
 
+void SettingsWidget::toggleMetro() {
+    emit showMetroChanged();
+}
+
 void SettingsWidget::toggleButtons() {
     emit showButtonsChanged();
 }
@@ -709,6 +747,14 @@ void SettingsWidget::toggleScope() {
 
 void SettingsWidget::toggleScopeLabels() {
     emit scopeLabelsChanged();
+}
+
+void SettingsWidget::toggleTitles() {
+    emit titlesChanged();
+}
+
+void SettingsWidget::toggleHideMenuBarInFullscreen() {
+    emit hideMenuBarInFullscreenChanged();
 }
 
 void SettingsWidget::updateTransparency(int t) {
@@ -784,8 +830,14 @@ void SettingsWidget::updateSettings() {
     if(!osc_server_enabled_check->isChecked()) {
       osc_public_check->setChecked(false);
     }
+
+    QString channel_pat_str = midi_default_channel_combo->currentText();
+    if(channel_pat_str.startsWith("*")) {
+      channel_pat_str = QString("*");
+    }
+
     piSettings->midi_default_channel = midi_default_channel_combo->currentIndex();
-    piSettings->midi_default_channel_str = midi_default_channel_combo->currentText(); // TODO find a more elegant solution
+    piSettings->midi_default_channel_str = channel_pat_str;
     piSettings->midi_enabled = midi_enable_check->isChecked();
 
     piSettings->auto_indent_on_run = auto_indent_on_run->isChecked();
@@ -794,6 +846,7 @@ void SettingsWidget::updateSettings() {
     piSettings->show_context = show_context->isChecked();
     piSettings->show_log = show_log->isChecked();
     piSettings->show_cues = show_cues->isChecked();
+    piSettings->show_metro = show_metro->isChecked();
     piSettings->show_buttons = show_buttons->isChecked();
     piSettings->show_tabs = show_tabs->isChecked();
     piSettings->full_screen = full_screen->isChecked();
@@ -810,6 +863,8 @@ void SettingsWidget::updateSettings() {
 
     piSettings->show_scopes = show_scopes->isChecked();
     piSettings->show_scope_labels = show_scope_labels->isChecked();
+    piSettings->show_titles = show_titles->isChecked();
+    piSettings->hide_menubar_in_fullscreen = hide_menubar_in_fullscreen->isChecked();
 
     piSettings->check_updates = check_updates->isChecked();
 }
@@ -847,6 +902,7 @@ void SettingsWidget::settingsChanged() {
     show_line_numbers->setChecked(piSettings->show_line_numbers);
     show_log->setChecked(piSettings->show_log);
     show_cues->setChecked(piSettings->show_cues);
+    show_metro->setChecked(piSettings->show_metro);
     show_buttons->setChecked(piSettings->show_buttons);
     show_tabs->setChecked(piSettings->show_tabs);
     full_screen->setChecked(piSettings->full_screen);
@@ -863,6 +919,8 @@ void SettingsWidget::settingsChanged() {
 
     show_scopes->setChecked(piSettings->show_scopes);
     show_scope_labels->setChecked(piSettings->show_scope_labels);
+    show_titles->setChecked(piSettings->show_titles);
+    hide_menubar_in_fullscreen->setChecked(piSettings->hide_menubar_in_fullscreen);
 
     check_updates->setChecked(piSettings->check_updates);
     show_autocompletion->setChecked(piSettings->show_autocompletion);
@@ -895,6 +953,7 @@ void SettingsWidget::connectAll() {
     connect(show_line_numbers, SIGNAL(clicked()), this, SLOT(updateSettings()));
     connect(show_log, SIGNAL(clicked()), this, SLOT(updateSettings()));
     connect(show_cues, SIGNAL(clicked()), this, SLOT(updateSettings()));
+    connect(show_metro, SIGNAL(clicked()), this, SLOT(updateSettings()));
     connect(show_buttons, SIGNAL(clicked()), this, SLOT(updateSettings()));
     connect(show_tabs, SIGNAL(clicked()), this, SLOT(updateSettings()));
     connect(full_screen, SIGNAL(clicked()), this, SLOT(updateSettings()));
@@ -915,6 +974,7 @@ void SettingsWidget::connectAll() {
     connect(show_line_numbers, SIGNAL(clicked()), this, SLOT(toggleLineNumbers()));
     connect(show_log, SIGNAL(clicked()), this, SLOT(toggleLog()));
     connect(show_cues, SIGNAL(clicked()), this, SLOT(toggleCuesLog()));
+    connect(show_metro, SIGNAL(clicked()), this, SLOT(toggleMetro()));
     connect(show_buttons, SIGNAL(clicked()), this, SLOT(toggleButtons()));
     connect(full_screen, SIGNAL(clicked()), this, SLOT(toggleFullScreen()));
     connect(show_tabs, SIGNAL(clicked()), this, SLOT(toggleTabs()));
@@ -929,6 +989,10 @@ void SettingsWidget::connectAll() {
     connect(show_scope_labels, SIGNAL(clicked()), this, SLOT(updateSettings()));
     connect(show_scopes, SIGNAL(clicked()), this, SLOT(updateSettings()));
     connect(show_scope_labels, SIGNAL(clicked()), this, SLOT(toggleScopeLabels()));
+    connect(show_titles, SIGNAL(clicked()), this, SLOT(updateSettings()));
+    connect(show_titles, SIGNAL(clicked()), this, SLOT(toggleTitles()));
+    connect(hide_menubar_in_fullscreen, SIGNAL(clicked()), this, SLOT(updateSettings()));
+    connect(hide_menubar_in_fullscreen, SIGNAL(clicked()), this, SLOT(toggleHideMenuBarInFullscreen()));
     connect(show_scopes, SIGNAL(clicked()), this, SLOT(toggleScope()));
 
     connect(check_updates, SIGNAL(clicked()), this, SLOT(updateSettings()));

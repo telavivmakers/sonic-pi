@@ -44,6 +44,7 @@
 #include <QTextStream>
 #include <QToolBar>
 #include <QToolButton>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 #include "mainwindow.h"
@@ -74,6 +75,8 @@ using namespace oscpkt; // OSC specific stuff
 #include "widgets/settingswidget.h"
 #include "widgets/sonicpicontext.h"
 #include "widgets/sonicpilog.h"
+#include "widgets/sonicpimetro.h"
+#include "widgets/sonicpieditor.h"
 
 #include "utils/ruby_help.h"
 
@@ -247,7 +250,7 @@ MainWindow::MainWindow(QApplication& app, QSplashScreen* splash)
 
     toggleOSCServer(1);
 
-    app.setActiveWindow(tabs->currentWidget());
+    app.setActiveWindow(editorTabWidget->currentWidget());
 
     if (!i18n)
     {
@@ -357,6 +360,7 @@ void MainWindow::setupTheme()
 {
     // Syntax highlighting
     QString themeFilename = QDir::homePath() + QDir::separator() + ".sonic-pi" + QDir::separator() + "config" + QDir::separator() + "colour-theme.properties";
+
     this->theme = new SonicPiTheme(this, themeFilename, rootPath());
 }
 
@@ -374,28 +378,32 @@ void MainWindow::setupWindowStructure()
 
     outputPane = new SonicPiLog;
     incomingPane = new SonicPiLog;
-    contextPane = new SonicPiContext;
     errorPane = new QTextBrowser;
+    metroPane = new SonicPiMetro(m_spClient, m_spAPI, theme, this);
+
     errorPane->setOpenExternalLinks(true);
 
     // Window layout
-    tabs = new QTabWidget();
-    tabs->setTabsClosable(false);
-    tabs->setMovable(false);
-    tabs->setTabPosition(QTabWidget::South);
+    editorTabWidget = new QTabWidget();
+    editorTabWidget->setTabsClosable(false);
+    editorTabWidget->setMovable(false);
+    editorTabWidget->setTabPosition(QTabWidget::South);
 
     lexer->setAutoIndentStyle(SonicPiScintilla::AiMaintain);
 
     // create workspaces and add them to the tabs
     // workspace shortcuts
     signalMapper = new QSignalMapper(this);
+    QVBoxLayout* prefsLayout = new QVBoxLayout;
+    prefsWidget = new QWidget;
+    prefsWidget->setParent(this);
+    prefsWidget->hide();
 
-    prefsWidget = new QDockWidget(tr("Preferences"), this);
-    prefsWidget->setFocusPolicy(Qt::NoFocus);
-    prefsWidget->setAllowedAreas(Qt::RightDockWidgetArea);
-    prefsWidget->setFeatures(QDockWidget::DockWidgetClosable);
+
 
     settingsWidget = new SettingsWidget(m_spAPI->GetPort(SonicPiPortId::tau_osc_cues), i18n, piSettings, sonicPii18n, this);
+    settingsWidget->setObjectName("settings");
+    settingsWidget->setAttribute(Qt::WA_StyledBackground, true);
     connect(settingsWidget, SIGNAL(restartApp()), this, SLOT(restartApp()));
     connect(settingsWidget, SIGNAL(volumeChanged(int)), this, SLOT(changeSystemPreAmp(int)));
     connect(settingsWidget, SIGNAL(mixerSettingsChanged()), this, SLOT(mixerSettingsChanged()));
@@ -406,6 +414,7 @@ void MainWindow::setupWindowStructure()
     connect(settingsWidget, SIGNAL(showAutoCompletionChanged()), this, SLOT(changeShowAutoCompletion()));
     connect(settingsWidget, SIGNAL(showLogChanged()), this, SLOT(updateLogVisibility()));
     connect(settingsWidget, SIGNAL(showCuesChanged()), this, SLOT(updateCuesVisibility()));
+    connect(settingsWidget, SIGNAL(showMetroChanged()), this, SLOT(updateMetroVisibility()));
     connect(settingsWidget, SIGNAL(showButtonsChanged()), this, SLOT(updateButtonVisibility()));
     connect(settingsWidget, SIGNAL(showFullscreenChanged()), this, SLOT(updateFullScreenMode()));
     connect(settingsWidget, SIGNAL(showTabsChanged()), this, SLOT(updateTabsVisibility()));
@@ -414,6 +423,8 @@ void MainWindow::setupWindowStructure()
     connect(settingsWidget, SIGNAL(scopeChanged()), this, SLOT(scope()));
     connect(settingsWidget, SIGNAL(scopeChanged(QString)), this, SLOT(changeScopeKindVisibility(QString)));
     connect(settingsWidget, SIGNAL(scopeLabelsChanged()), this, SLOT(changeScopeLabels()));
+    connect(settingsWidget, SIGNAL(titlesChanged()), this, SLOT(changeTitleVisibility()));
+    connect(settingsWidget, SIGNAL(hideMenuBarInFullscreenChanged()), this, SLOT(changeMenuBarInFullscreenVisibility()));
     connect(settingsWidget, SIGNAL(transparencyChanged(int)), this, SLOT(changeGUITransparency(int)));
 
     connect(settingsWidget, SIGNAL(checkUpdatesChanged()), this, SLOT(update_check_updates()));
@@ -437,15 +448,31 @@ void MainWindow::setupWindowStructure()
 
     restoreScopeState(scopeWindow->GetScopeCategories());
     settingsWidget->updateScopeNames(scopeWindow->GetScopeCategories());
-    QSizePolicy prefsSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-    settingsWidget->setSizePolicy(prefsSizePolicy);
-    prefsWidget->setWidget(settingsWidget);
 
-    addDockWidget(Qt::RightDockWidgetArea, prefsWidget);
-    prefsWidget->hide();
+    QHBoxLayout* prefsLabelLayout = new QHBoxLayout;
+    QLabel* prefsLabel = new QLabel(tr("Preferences"));
+    prefsLabelLayout->addStretch(1);
+    prefsLabelLayout->addWidget(prefsLabel);
+    prefsLabelLayout->addStretch(1);
+    prefsLayout->addLayout(prefsLabelLayout);
+    prefsLayout->addWidget(settingsWidget, 2) ;
+    QHBoxLayout* prefsButtonLayout = new QHBoxLayout;
+    QPushButton* prefsHidePushButton = new QPushButton(tr("Close"));
+    prefsHidePushButton->setObjectName("prefsHideButton");
+    prefsButtonLayout->addStretch(1);
+    prefsButtonLayout->addWidget(prefsHidePushButton);
+    prefsLayout->addLayout(prefsButtonLayout);
     prefsWidget->setObjectName("prefs");
+    prefsWidget->setLayout(prefsLayout);
+    prefsWidget->setMinimumHeight(settingsWidget->height() + ScaleHeightForDPI(240));
 
-    connect(prefsWidget, SIGNAL(visibilityChanged(bool)), this, SLOT(updatePrefsIcon()));
+    QSizePolicy prefsSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+    prefsWidget->setSizePolicy(prefsSizePolicy) ;
+
+    connect(prefsHidePushButton, &QPushButton::clicked, this, [=]() {
+      togglePrefs();
+    });
+
     bool auto_indent = piSettings->auto_indent_on_run;
     for (int ws = 0; ws < workspace_max; ws++)
     {
@@ -577,12 +604,13 @@ void MainWindow::setupWindowStructure()
 
         QString w = QString(tr("| %1 |")).arg(QString::number(ws));
         workspaces[ws] = workspace;
-        tabs->addTab(workspace, w);
+        SonicPiEditor *editor = new SonicPiEditor(workspace, theme, this);
+        editorTabWidget->addTab(editor, w);
 
         connect(workspace, SIGNAL(cursorPositionChanged(int, int)), this, SLOT(updateContext(int, int)));
     }
 
-    connect(signalMapper, SIGNAL(mapped(int)), this, SLOT(changeTab(int)));
+    connect(signalMapper, SIGNAL(mappedInt(int)), this, SLOT(changeTab(int)));
 
     QFont font("Monospace");
     font.setStyleHint(QFont::Monospace);
@@ -609,9 +637,7 @@ void MainWindow::setupWindowStructure()
 
     errorPane->setReadOnly(true);
 
-    contextPane->setReadOnly(true);
-    contextPane->setLineWrapMode(QPlainTextEdit::NoWrap);
-    contextPane->setFontFamily("Hack");
+
 
     if (!theme->font("LogFace").isEmpty())
     {
@@ -622,7 +648,6 @@ void MainWindow::setupWindowStructure()
     outputPane->document()->setMaximumBlockCount(1000);
     incomingPane->document()->setMaximumBlockCount(1000);
     errorPane->document()->setMaximumBlockCount(1000);
-    contextPane->document()->setMaximumBlockCount(1000);
 
     outputPane->setTextColor(QColor(theme->color("LogForeground")));
     outputPane->appendPlainText("\n");
@@ -630,12 +655,9 @@ void MainWindow::setupWindowStructure()
     incomingPane->setTextColor(QColor(theme->color("LogForeground")));
     incomingPane->appendPlainText("\n");
 
-    contextPane->setTextColor(QColor(theme->color("LogForeground")));
-    contextPane->appendPlainText("\n");
 
     errorPane->zoomIn(1);
     errorPane->setFixedHeight(ScaleHeightForDPI(200));
-
     // hudPane = new QTextBrowser;
     // hudPane->setMinimumHeight(130);
     // hudPane->setHtml("<center><img src=\":/images/logo.png\" height=\"113\" width=\"138\"></center>");
@@ -658,6 +680,7 @@ void MainWindow::setupWindowStructure()
 
     connect(scopeWidget, SIGNAL(visibilityChanged(bool)), this, SLOT(scopeVisibilityChanged()));
 
+
     outputWidget = new QDockWidget(tr("Log"), this);
     outputWidget->setFocusPolicy(Qt::NoFocus);
     outputWidget->setFeatures(QDockWidget::NoDockWidgetFeatures);
@@ -670,21 +693,27 @@ void MainWindow::setupWindowStructure()
     incomingWidget->setAllowedAreas(Qt::RightDockWidgetArea);
     incomingWidget->setWidget(incomingPane);
 
-    contextWidget = new QDockWidget(tr("Context"), this);
-    contextWidget->setFocusPolicy(Qt::NoFocus);
-    contextWidget->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    contextWidget->setAllowedAreas(Qt::RightDockWidgetArea);
-    contextWidget->setWidget(contextPane);
+    metroWidget = new QDockWidget(tr("Link Metronome"), this);
+    metroWidget->setFocusPolicy(Qt::NoFocus);
+    metroWidget->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    metroWidget->setAllowedAreas(Qt::RightDockWidgetArea);
+    metroWidget->setMaximumHeight(ScaleHeightForDPI(100));
+    metroWidget->setWidget(metroPane);
+
 
     addDockWidget(Qt::RightDockWidgetArea, outputWidget);
     addDockWidget(Qt::RightDockWidgetArea, incomingWidget);
-    addDockWidget(Qt::RightDockWidgetArea, contextWidget);
+    addDockWidget(Qt::RightDockWidgetArea, metroWidget);
+
     outputWidget->setObjectName("output");
     incomingWidget->setObjectName("input");
-    contextWidget->setObjectName("context");
+    metroWidget->setObjectName("metro");
 
-    blankWidget = new QWidget();
-    outputWidgetTitle = outputWidget->titleBarWidget();
+    blankWidgetOutput = new QWidget();
+    blankWidgetIncoming = new QWidget();
+    blankWidgetScope = new QWidget();
+    blankWidgetDoc = new QWidget();
+    blankWidgetMetro = new QWidget();
 
     docsNavTabs = new QTabWidget;
     docsNavTabs->setFocusPolicy(Qt::NoFocus);
@@ -733,6 +762,7 @@ void MainWindow::setupWindowStructure()
     southTabs->setTabsClosable(false);
     southTabs->setMovable(false);
     southTabs->addTab(docsplit, "Docs");
+    southTabs->setAttribute(Qt::WA_StyledBackground, true);
 
 #ifdef WITH_WEBENGINE
     southTabs->addTab(phxWidget, "Tau");
@@ -752,7 +782,7 @@ void MainWindow::setupWindowStructure()
     connect(docWidget, SIGNAL(visibilityChanged(bool)), this, SLOT(toggleHelpIcon()));
 
     mainWidgetLayout = new QVBoxLayout;
-    mainWidgetLayout->addWidget(tabs);
+    mainWidgetLayout->addWidget(editorTabWidget);
     mainWidgetLayout->addWidget(errorPane);
     mainWidget = new QWidget;
     mainWidget->setFocusPolicy(Qt::NoFocus);
@@ -814,7 +844,7 @@ void MainWindow::escapeWorkspaces()
 
 void MainWindow::changeTab(int id)
 {
-    tabs->setCurrentIndex(id);
+    editorTabWidget->setCurrentIndex(id);
 }
 
 void MainWindow::toggleFullScreenMode()
@@ -831,6 +861,26 @@ void MainWindow::fullScreenMenuChanged()
     updateFullScreenMode();
 }
 
+void MainWindow::blankTitleBars()
+{
+  statusBar()->showMessage(tr("Hiding pane titles..."), 2000);
+  outputWidget->setTitleBarWidget(blankWidgetOutput);
+  incomingWidget->setTitleBarWidget(blankWidgetIncoming);
+  scopeWidget->setTitleBarWidget(blankWidgetScope);
+  docWidget->setTitleBarWidget(blankWidgetDoc);
+  metroWidget->setTitleBarWidget(blankWidgetMetro);
+}
+
+void MainWindow::namedTitleBars()
+{
+  statusBar()->showMessage(tr("Showing pane titles..."), 2000);
+  outputWidget->setTitleBarWidget(0);
+  incomingWidget->setTitleBarWidget(0);
+  scopeWidget->setTitleBarWidget(0);
+  docWidget->setTitleBarWidget(0);
+  metroWidget->setTitleBarWidget(0);
+}
+
 void MainWindow::updateFullScreenMode()
 {
     QSignalBlocker blocker(fullScreenAct);
@@ -841,8 +891,9 @@ void MainWindow::updateFullScreenMode()
         //switch to full screen mode
         std::cout << "[GUI] - switch into full screen mode." << std::endl;
 
+
 #if defined(Q_OS_WIN)
-        outputWidget->setTitleBarWidget(blankWidget);
+
         QRect rect = this->geometry();
         m_appWindowSizeRect.reset(new QRect(rect));
         QRect screenRect = this->screen()->availableGeometry();
@@ -857,13 +908,13 @@ void MainWindow::updateFullScreenMode()
     {
         //switch out of full screen mode
         std::cout << "[GUI] - switch out of full screen mode." << std::endl;
-
+        menuBar()->show();
 #ifdef Q_OS_WIN
         this->setWindowFlags(Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
         this->setWindowFlags(windowFlags() & ~Qt::FramelessWindowHint);
         this->setGeometry(*m_appWindowSizeRect.get());
         this->setWindowState((this->windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
-        outputWidget->setTitleBarWidget(outputWidgetTitle);
+
 #else
         this->showNormal();
 #endif
@@ -871,7 +922,7 @@ void MainWindow::updateFullScreenMode()
         statusBar()->showMessage(tr("Full screen mode off."), 2000);
         fullScreenMode = false;
     }
-
+    changeMenuBarInFullscreenVisibility();
     this->show();
 }
 
@@ -956,6 +1007,14 @@ void MainWindow::showCuesMenuChanged()
     updateCuesVisibility();
 }
 
+void MainWindow::showMetroChanged()
+{
+    piSettings->show_metro = showMetroAct->isChecked();
+    emit settingsChanged();
+    updateMetroVisibility();
+}
+
+
 void MainWindow::showLogMenuChanged()
 {
     piSettings->show_log = showLogAct->isChecked();
@@ -978,6 +1037,21 @@ void MainWindow::updateCuesVisibility()
     }
 }
 
+void MainWindow::updateMetroVisibility()
+{
+    QSignalBlocker blocker(showMetroAct);
+    showMetroAct->setChecked(piSettings->show_metro);
+
+    if (piSettings->show_metro)
+    {
+        metroWidget->show();
+    }
+    else
+    {
+        metroWidget->close();
+    }
+}
+
 void MainWindow::toggleTabsVisibility()
 {
     piSettings->show_tabs = !piSettings->show_tabs;
@@ -997,7 +1071,7 @@ void MainWindow::updateTabsVisibility()
     QSignalBlocker blocker(showTabsAct);
     showTabsAct->setChecked(piSettings->show_tabs);
 
-    QTabBar* tabBar = tabs->findChild<QTabBar*>();
+    QTabBar* tabBar = editorTabWidget->findChild<QTabBar*>();
 
     if (piSettings->show_tabs)
     {
@@ -1084,7 +1158,7 @@ void MainWindow::completeSnippetOrIndentCurrentLineOrSelection(SonicPiScintilla*
 
 void MainWindow::toggleCommentInCurrentWorkspace()
 {
-    SonicPiScintilla* ws = (SonicPiScintilla*)tabs->currentWidget();
+    SonicPiScintilla* ws = getCurrentWorkspace();
     toggleComment(ws);
 }
 
@@ -1248,6 +1322,7 @@ void MainWindow::honourPrefs()
     updateLogAutoScroll();
     changeGUITransparency(piSettings->gui_transparency);
     changeScopeLabels();
+    changeTitleVisibility();
     toggleMidi(1);
     toggleOSCServer(1);
     toggleIcons();
@@ -1449,7 +1524,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
 
 QString MainWindow::currentTabLabel()
 {
-    return tabs->tabText(tabs->currentIndex());
+    return editorTabWidget->tabText(editorTabWidget->currentIndex());
 }
 
 bool MainWindow::loadFile()
@@ -1460,7 +1535,7 @@ bool MainWindow::loadFile()
     if (!fileName.isEmpty())
     {
         gui_settings->setValue("lastDir", QDir(fileName).absolutePath());
-        SonicPiScintilla* p = (SonicPiScintilla*)tabs->currentWidget();
+        SonicPiScintilla* p = getCurrentWorkspace();
         loadFile(fileName, p);
         return true;
     }
@@ -1483,7 +1558,7 @@ bool MainWindow::saveAs()
         {
             fileName = fileName + ".txt";
         }
-        return saveFile(fileName, (SonicPiScintilla*)tabs->currentWidget());
+        return saveFile(fileName, getCurrentWorkspace());
     }
     else
     {
@@ -1499,7 +1574,7 @@ void MainWindow::resetErrorPane()
 
 void MainWindow::runBufferIdx(int idx)
 {
-    QMetaObject::invokeMethod(tabs, "setCurrentIndex", Q_ARG(int, idx));
+    QMetaObject::invokeMethod(editorTabWidget, "setCurrentIndex", Q_ARG(int, idx));
     runCode();
 }
 
@@ -1538,7 +1613,7 @@ void MainWindow::runCode()
     outputPane->setTextCursor(newOutputCursor);
 
     update();
-    SonicPiScintilla* ws = (SonicPiScintilla*)tabs->currentWidget();
+    SonicPiScintilla* ws = getCurrentWorkspace();
 
     QString code = ws->text();
 
@@ -1585,7 +1660,7 @@ void MainWindow::runCode()
     Message msg("/save-and-run-buffer");
     msg.pushInt32(guiID);
 
-    std::string filename = ((SonicPiScintilla*)tabs->currentWidget())->fileName.toStdString();
+    std::string filename = getCurrentWorkspace()->fileName.toStdString();
     msg.pushStr(filename);
 
     if (piSettings->clear_output_on_run)
@@ -1609,21 +1684,21 @@ void MainWindow::runCode()
 void MainWindow::zoomCurrentWorkspaceIn()
 {
     statusBar()->showMessage(tr("Zooming In..."), 2000);
-    SonicPiScintilla* ws = ((SonicPiScintilla*)tabs->currentWidget());
+    SonicPiScintilla* ws = getCurrentWorkspace();
     ws->zoomFontIn();
 }
 
 void MainWindow::zoomCurrentWorkspaceOut()
 {
     statusBar()->showMessage(tr("Zooming Out..."), 2000);
-    SonicPiScintilla* ws = ((SonicPiScintilla*)tabs->currentWidget());
+    SonicPiScintilla* ws = getCurrentWorkspace();
     ws->zoomFontOut();
 }
 
 void MainWindow::beautifyCode()
 {
     statusBar()->showMessage(tr("Beautifying..."), 2000);
-    SonicPiScintilla* ws = ((SonicPiScintilla*)tabs->currentWidget());
+    SonicPiScintilla* ws = getCurrentWorkspace();
     std::string code = ws->text().toStdString();
     int line = 0;
     int index = 0;
@@ -1631,7 +1706,7 @@ void MainWindow::beautifyCode()
     int first_line = ws->firstVisibleLine();
     Message msg("/buffer-beautify");
     msg.pushInt32(guiID);
-    std::string filename = ((SonicPiScintilla*)tabs->currentWidget())->fileName.toStdString();
+    std::string filename = getCurrentWorkspace()->fileName.toStdString();
     msg.pushStr(filename);
     msg.pushStr(code);
     msg.pushInt32(line);
@@ -1647,6 +1722,7 @@ bool MainWindow::sendOSC(Message m)
 
 void MainWindow::reloadServerCode()
 {
+    m_spAPI->RestartTau();
     statusBar()->showMessage(tr("Reloading..."), 2000);
     Message msg("/reload");
     msg.pushInt32(guiID);
@@ -1833,7 +1909,7 @@ void MainWindow::helpContext()
 {
     if (!docWidget->isVisible())
         docWidget->show();
-    SonicPiScintilla* ws = ((SonicPiScintilla*)tabs->currentWidget());
+    SonicPiScintilla* ws = getCurrentWorkspace();
     QString selection = ws->selectedText();
     if (selection == "")
     { // get current word instead
@@ -1930,11 +2006,55 @@ void MainWindow::showScopeLabelsMenuChanged()
     changeScopeLabels();
 }
 
+void MainWindow::titleVisibilityChanged()
+{
+
+    piSettings->show_titles = showTitlesAct->isChecked();
+    emit settingsChanged();
+    changeTitleVisibility();
+}
+
+void MainWindow::menuBarInFullscreenVisibilityChanged()
+{
+
+    piSettings->hide_menubar_in_fullscreen = hideMenuBarInFullscreenAct->isChecked();
+    emit settingsChanged();
+    changeMenuBarInFullscreenVisibility();
+}
+
 void MainWindow::changeScopeLabels()
 {
     QSignalBlocker blocker(showScopeLabelsAct);
     showScopeLabelsAct->setChecked(piSettings->show_scope_labels);
     scopeWindow->SetScopeLabels(piSettings->show_scope_labels);
+}
+
+void MainWindow::changeTitleVisibility()
+{
+    QSignalBlocker blocker(showTitlesAct);
+    if(piSettings->show_titles) {
+      namedTitleBars();
+      showTitlesAct->setChecked(true);
+    } else {
+      blankTitleBars();
+      showTitlesAct->setChecked(false);
+    }
+}
+
+void MainWindow::changeMenuBarInFullscreenVisibility()
+{
+    QSignalBlocker blocker(hideMenuBarInFullscreenAct);
+    if(piSettings->hide_menubar_in_fullscreen) {
+      if (piSettings->full_screen) {
+        menuBar()->hide();
+      }
+      hideMenuBarInFullscreenAct->setChecked(true);
+    } else {
+      if (piSettings->full_screen) {
+        menuBar()->show();
+      }
+      hideMenuBarInFullscreenAct->setChecked(false);
+    }
 }
 
 void MainWindow::cycleThemes()
@@ -2091,10 +2211,6 @@ void MainWindow::updateColourTheme()
 
     errorPane->document()->setDefaultStyleSheet(css);
 
-    // update context pane
-    contextPane->setTextColor(QColor(theme->color("LogForeground")));
-    updateContextWithCurrentWs();
-
     // clear stylesheets
     this->setStyleSheet("");
     infoWidg->setStyleSheet("");
@@ -2103,7 +2219,7 @@ void MainWindow::updateColourTheme()
     outputPane->setStyleSheet("");
     outputWidget->setStyleSheet("");
     prefsWidget->setStyleSheet("");
-    tabs->setStyleSheet("");
+    editorTabWidget->setStyleSheet("");
     //TODO inject to settings Widget
     //prefTabs->setStyleSheet("");
     docsNavTabs->setStyleSheet("");
@@ -2118,31 +2234,21 @@ void MainWindow::updateColourTheme()
 
     this->setStyleSheet(appStyling);
     infoWidg->setStyleSheet(appStyling);
+    settingsWidget->setStyleSheet(appStyling);
 
     scopeWindow->Refresh();
     scopeWidget->update();
 
-    for (int i = 0; i < tabs->count(); i++)
+    for (int i = 0; i < editorTabWidget->count(); i++)
     {
-        SonicPiScintilla* ws = (SonicPiScintilla*)tabs->widget(i);
-        ws->setFrameShape(QFrame::NoFrame);
-        ws->setStyleSheet("");
-        ws->setStyleSheet(appStyling);
-
-        if (piSettings->themeStyle == SonicPiTheme::HighContrastMode)
-        {
-            ws->setCaretWidth(8);
-        }
-        else
-        {
-            ws->setCaretWidth(5);
-        }
-        ws->redraw();
+      ((SonicPiEditor*)editorTabWidget->widget(i))->updateColourTheme(appStyling, piSettings->themeStyle);
     }
 
+    updateContextWithCurrentWs();
     scopeWindow->SetColor(theme->color("Scope"));
     scopeWindow->SetColor2(theme->color("Scope_2"));
     lexer->unhighlightAll();
+    metroPane->updateColourTheme();
 }
 
 void MainWindow::showLineNumbersMenuChanged()
@@ -2289,9 +2395,9 @@ void MainWindow::changeShowLineNumbers()
 
     bool show = piSettings->show_line_numbers;
 
-    for (int i = 0; i < tabs->count(); i++)
+    for (int i = 0; i < editorTabWidget->count(); i++)
     {
-        SonicPiScintilla* ws = (SonicPiScintilla*)tabs->widget(i);
+        SonicPiScintilla* ws = ((SonicPiEditor*)editorTabWidget->widget(i))->getWorkspace();
         if (show)
         {
             ws->showLineNumbers();
@@ -2318,9 +2424,9 @@ void MainWindow::changeShowAutoCompletion()
         statusBar()->showMessage(tr("Show autocompletion off"), 2000);
     }
 
-    for (int i = 0; i < tabs->count(); i++)
+    for (int i = 0; i < editorTabWidget->count(); i++)
     {
-        SonicPiScintilla* ws = (SonicPiScintilla*)tabs->widget(i);
+        SonicPiScintilla* ws = ((SonicPiEditor*)editorTabWidget->widget(i))->getWorkspace();
         ws->showAutoCompletion(show);
     }
 
@@ -2333,13 +2439,20 @@ void MainWindow::changeShowContext()
     bool show = piSettings->show_context;
     if (show)
     {
-        statusBar()->showMessage(tr("Show context on"), 2000);
-        contextWidget->show();
+      statusBar()->showMessage(tr("Show context on"), 2000);
+      for (int i = 0; i < editorTabWidget->count(); i++)
+      {
+        ((SonicPiEditor*)editorTabWidget->widget(i))->showContext();
+      }
+
     }
     else
     {
-        statusBar()->showMessage(tr("Show context off"), 2000);
-        contextWidget->hide();
+      statusBar()->showMessage(tr("Show context off"), 2000);
+      for (int i = 0; i < editorTabWidget->count(); i++)
+      {
+        ((SonicPiEditor*)editorTabWidget->widget(i))->hideContext();
+      }
     }
 
     QSignalBlocker blocker(showContextAct);
@@ -2352,13 +2465,15 @@ void MainWindow::togglePrefs()
     if (prefsWidget->isVisible())
     {
         statusBar()->showMessage(tr("Hiding preferences..."), 2000);
-        prefsWidget->hide();
+        slidePrefsWidgetOut();
         prefsAct->setChecked(false);
     }
     else
     {
         statusBar()->showMessage(tr("Showing preferences..."), 2000);
-        prefsWidget->show();
+
+
+        slidePrefsWidgetIn();
         prefsAct->setChecked(true);
     }
     updatePrefsIcon();
@@ -2374,7 +2489,7 @@ void MainWindow::wheelEvent(QWheelEvent* event)
 #if defined(Q_OS_WIN)
     if (event->modifiers() & Qt::ControlModifier)
     {
-        SonicPiScintilla* ws = ((SonicPiScintilla*)tabs->currentWidget());
+        SonicPiScintilla* ws = getCurrentWorkspace();
         if (event->angleDelta().y() > 0)
             ws->zoomFontIn();
         else
@@ -2781,6 +2896,16 @@ void MainWindow::createToolBar()
     showScopeLabelsAct->setChecked(false);
     connect(showScopeLabelsAct, SIGNAL(triggered()), this, SLOT(showScopeLabelsMenuChanged()));
 
+    showTitlesAct = new QAction(tr("Show Titles"));
+    showTitlesAct->setCheckable(true);
+    showTitlesAct->setChecked(false);
+    connect(showTitlesAct, SIGNAL(triggered()), this, SLOT(titleVisibilityChanged()));
+
+    hideMenuBarInFullscreenAct = new QAction(tr("Hide Menu Bar in Fullscreen Mode"));
+    hideMenuBarInFullscreenAct->setCheckable(true);
+    hideMenuBarInFullscreenAct->setChecked(false);
+    connect(hideMenuBarInFullscreenAct, SIGNAL(triggered()), this, SLOT(menuBarInFullscreenVisibilityChanged()));
+
     themeMenu = displayMenu->addMenu(tr("Colour Theme"));
     themeMenu->addAction(lightThemeAct);
     themeMenu->addAction(darkThemeAct);
@@ -2976,6 +3101,11 @@ void MainWindow::createToolBar()
     showCuesAct->setChecked(piSettings->show_cues);
     connect(showCuesAct, SIGNAL(triggered()), this, SLOT(showCuesMenuChanged()));
 
+    showMetroAct = new QAction(tr("Show Metronome"), this);
+    showMetroAct->setCheckable(true);
+    showMetroAct->setChecked(piSettings->show_metro);
+    connect(showMetroAct, SIGNAL(triggered()), this, SLOT(showMetroChanged()));
+
     showButtonsAct = new QAction(tr("Show Buttons"), this);
     showButtonsAct->setCheckable(true);
     showButtonsAct->setChecked(piSettings->show_buttons);
@@ -2999,10 +3129,19 @@ void MainWindow::createToolBar()
     viewMenu->addSeparator();
     viewMenu->addAction(showButtonsAct);
     viewMenu->addAction(showTabsAct);
+    viewMenu->addAction(showTitlesAct);
+
+#ifndef Q_OS_MAC
+    // Don't enable this on Mac as macOS autohides the menubar on
+    // fullscreen anyway
+    viewMenu->addAction(hideMenuBarInFullscreenAct);
+#endif
+
     viewMenu->addSeparator();
     viewMenu->addAction(infoAct);
     viewMenu->addAction(helpAct);
     viewMenu->addAction(prefsAct);
+    viewMenu->addAction(showMetroAct);
     viewMenu->addSeparator();
     viewMenu->addAction(focusEditorAct);
     viewMenu->addAction(focusLogsAct);
@@ -3127,7 +3266,7 @@ void MainWindow::createInfoPane()
 
     infoTabs->setTabPosition(QTabWidget::South);
 
-    QBoxLayout* infoLayout = new QBoxLayout(QBoxLayout::LeftToRight);
+    QHBoxLayout* infoLayout = new QHBoxLayout;
     infoLayout->addWidget(infoTabs);
 
     infoWidg = new InfoWidget;
@@ -3219,8 +3358,8 @@ void MainWindow::restoreWindows()
     QSize size = gui_settings->value("size", QSize(rec.width(), rec.height())).toSize();
 
     int index = gui_settings->value("workspace", 0).toInt();
-    if (index < tabs->count())
-        tabs->setCurrentIndex(index);
+    if (index < editorTabWidget->count())
+        editorTabWidget->setCurrentIndex(index);
 
     for (int w = 0; w < workspace_max; w++)
     {
@@ -3236,29 +3375,12 @@ void MainWindow::restoreWindows()
         workspaces[w]->zoomTo(zoom);
     }
 
+    restoreState(gui_settings->value("windowState").toByteArray());
     docsplit->restoreState(gui_settings->value("docsplitState").toByteArray());
-    //bool visualizer = piSettings->show_scopes;
-    //    restoreGeometry(settings.value("windowGeom").toByteArray());
+    restoreGeometry(gui_settings->value("windowGeom").toByteArray());
 
     auto current_state = saveState();
 
-    // clear windowState - in some circumstances an invalid windowState
-    // can crash the GUI. Therefore clear it now in case we do have a
-    // crash after which a restart should start up fine with a fresh new
-    // state. If there is no crash, we still store the windowState
-    // immidiately prior to shutting down.
-    gui_settings->remove("windowState");
-    gui_settings->sync();
-
-    // Note: this line has crashed with bad state in the past. It wasn't
-    // possible to rescue any exceptions.
-    restoreState(gui_settings->value("windowState").toByteArray());
-
-
-    //    if (visualizer != piSettings->show_scopes) {
-    //        piSettings->show_scopes = visualizer;
-    //        scope();
-    //    }
     resize(size);
     move(pos);
 }
@@ -3296,6 +3418,9 @@ void MainWindow::readSettings()
     piSettings->show_scopes = gui_settings->value("prefs/scope/show-scopes", true).toBool();
     piSettings->show_scope_labels = gui_settings->value("prefs/scope/show-labels", false).toBool();
     piSettings->show_cues = gui_settings->value("prefs/show_cues", true).toBool();
+    piSettings->show_metro = gui_settings->value("prefs/show_metro", true).toBool();
+    piSettings->show_titles = gui_settings->value("prefs/show-titles", true).toBool();
+    piSettings->hide_menubar_in_fullscreen = gui_settings->value("prefs/hide-menubar-in-fullscreen", false).toBool();
     QString styleName = gui_settings->value("prefs/theme", "").toString();
 
     piSettings->themeStyle = theme->themeNameToStyle(styleName);
@@ -3347,7 +3472,10 @@ void MainWindow::writeSettings()
     gui_settings->setValue("prefs/gui_transparency", piSettings->gui_transparency);
     gui_settings->setValue("prefs/scope/show-labels", piSettings->show_scope_labels);
     gui_settings->setValue("prefs/scope/show-scopes", piSettings->show_scopes);
+    gui_settings->setValue("prefs/show-titles", piSettings->show_titles);
+    gui_settings->setValue("prefs/hide-menubar-in-fullscreen", piSettings->hide_menubar_in_fullscreen);
     gui_settings->setValue("prefs/show_cues", piSettings->show_cues);
+    gui_settings->setValue("prefs/show_metro", piSettings->show_metro);
     gui_settings->setValue("prefs/theme", theme->themeStyleToName(piSettings->themeStyle));
 
     gui_settings->setValue("prefs/show-autocompletion", piSettings->show_autocompletion);
@@ -3362,7 +3490,7 @@ void MainWindow::writeSettings()
         gui_settings->setValue("prefs/scope/show-" + name.toLower(), piSettings->isScopeActive(name));
     }
 
-    gui_settings->setValue("workspace", tabs->currentIndex());
+    gui_settings->setValue("workspace", editorTabWidget->currentIndex());
 
     for (int w = 0; w < workspace_max; w++)
     {
@@ -3650,35 +3778,35 @@ void MainWindow::docScrollDown()
 
 void MainWindow::tabNext()
 {
-    int index = tabs->currentIndex();
-    if (index == tabs->count() - 1)
+    int index = editorTabWidget->currentIndex();
+    if (index == editorTabWidget->count() - 1)
         index = 0;
     else
         index++;
-    QMetaObject::invokeMethod(tabs, "setCurrentIndex", Q_ARG(int, index));
+    QMetaObject::invokeMethod(editorTabWidget, "setCurrentIndex", Q_ARG(int, index));
 }
 
 void MainWindow::tabPrev()
 {
-    int index = tabs->currentIndex();
+    int index = editorTabWidget->currentIndex();
     if (index == 0)
-        index = tabs->count() - 1;
+        index = editorTabWidget->count() - 1;
     else
         index--;
-    QMetaObject::invokeMethod(tabs, "setCurrentIndex", Q_ARG(int, index));
+    QMetaObject::invokeMethod(editorTabWidget, "setCurrentIndex", Q_ARG(int, index));
 }
 
 void MainWindow::tabGoto(int index)
 {
-    if (index < tabs->count())
-        QMetaObject::invokeMethod(tabs, "setCurrentIndex", Q_ARG(int, index));
+    if (index < editorTabWidget->count())
+        QMetaObject::invokeMethod(editorTabWidget, "setCurrentIndex", Q_ARG(int, index));
 }
 
 void MainWindow::setLineMarkerinCurrentWorkspace(int num)
 {
     if (num > 0)
     {
-        SonicPiScintilla* ws = (SonicPiScintilla*)tabs->currentWidget();
+        SonicPiScintilla* ws = getCurrentWorkspace();
         ws->setLineErrorMarker(num - 1);
     }
 }
@@ -3916,14 +4044,12 @@ void MainWindow::zoomInLogs()
 {
     outputPane->zoomIn();
     incomingPane->zoomIn();
-    contextPane->zoomIn();
 }
 
 void MainWindow::zoomOutLogs()
 {
     outputPane->zoomOut();
     incomingPane->zoomOut();
-    contextPane->zoomOut();
 }
 
 void MainWindow::updateMIDIInPorts(QString port_info)
@@ -3971,6 +4097,7 @@ void MainWindow::updateMIDIOutPorts(QString port_info)
 
 void MainWindow::focusContext()
 {
+    SonicPiContext *contextPane = getCurrentEditor()->getContext();
     contextPane->showNormal();
     contextPane->setFocusPolicy(Qt::StrongFocus);
     contextPane->setFocus();
@@ -3991,7 +4118,7 @@ void MainWindow::focusLogs()
 
 void MainWindow::focusEditor()
 {
-    SonicPiScintilla* ws = (SonicPiScintilla*)tabs->currentWidget();
+    SonicPiScintilla* ws = getCurrentWorkspace();
     ws->showNormal();
     ws->setFocusPolicy(Qt::StrongFocus);
     ws->setFocus();
@@ -4013,8 +4140,9 @@ void MainWindow::focusCues()
 void MainWindow::focusPreferences()
 {
     prefsWidget->show();
+    prefsWidget->raise();
     updatePrefsIcon();
-    settingsWidget->showNormal();
+    prefsWidget->showNormal();
     settingsWidget->setFocusPolicy(Qt::StrongFocus);
     settingsWidget->setFocus();
     settingsWidget->raise();
@@ -4057,7 +4185,8 @@ void MainWindow::focusErrors()
 
 void MainWindow::updateContextWithCurrentWs()
 {
-    SonicPiScintilla* ws = ((SonicPiScintilla*)tabs->currentWidget());
+
+    SonicPiScintilla* ws = getCurrentWorkspace();
     int line, index;
     ws->getCursorPosition(&line, &index);
     updateContext(line, index);
@@ -4065,7 +4194,7 @@ void MainWindow::updateContextWithCurrentWs()
 
 void MainWindow::updateContext(int line, int index)
 {
-    contextPane->setContent(tr("Line: %1,  Position: %2").arg(line + 1).arg(index + 1));
+  getCurrentEditor()->setContextContent(tr("Line: %1,  Position: %2").arg(line + 1).arg(index + 1));
 }
 
 SonicPiLog* MainWindow::GetOutputPane() const
@@ -4081,4 +4210,68 @@ SonicPiLog* MainWindow::GetIncomingPane() const
 SonicPiTheme* MainWindow::GetTheme() const
 {
     return theme;
+}
+
+void MainWindow::movePrefsWidget()
+{
+  int h = toolBar->size().height() + 20;
+  int full_width = this->size().width();
+  int w = full_width - prefsWidget->size().width();
+  prefsWidget->move(w, h);
+}
+
+void MainWindow::slidePrefsWidgetIn()
+{
+  int h = toolBar->size().height() + 20;
+  int full_width = this->size().width();
+  int prefs_width = prefsWidget->size().width();
+  int w = full_width - prefs_width;
+  int delta = prefs_width / 10;
+
+  prefsWidget->move(full_width, h);
+  prefsWidget->show();
+  prefsWidget->raise();
+
+  for(int i = full_width; i > w; i = i - delta) {
+    QCoreApplication::processEvents();
+    prefsWidget->move(i, h);
+    QThread::msleep(2);
+  }
+
+  movePrefsWidget();
+}
+
+void MainWindow::slidePrefsWidgetOut()
+{
+  int h = toolBar->size().height() + 20;
+  int full_width = this->size().width();
+  int prefs_width = prefsWidget->size().width();
+  int w = full_width - prefs_width;
+  int delta = prefs_width / 10;
+
+  for(int i = w; i < full_width; i = i + delta) {
+    QCoreApplication::processEvents();
+    prefsWidget->move(i, h);
+    QThread::msleep(2);
+  }
+
+  prefsWidget->hide();
+}
+
+
+
+void MainWindow::resizeEvent( QResizeEvent *e )
+{
+  movePrefsWidget();
+  QMainWindow::resizeEvent(e);
+}
+
+SonicPiScintilla* MainWindow::getCurrentWorkspace()
+{
+  return getCurrentEditor()->getWorkspace();
+}
+
+SonicPiEditor* MainWindow::getCurrentEditor()
+{
+  return (SonicPiEditor*)editorTabWidget->currentWidget();
 }

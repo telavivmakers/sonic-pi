@@ -13,19 +13,28 @@ export TAU_OSC_IN_UDP_PORT=$5
 export TAU_API_PORT=$6
 export TAU_SPIDER_PORT=$7
 export TAU_DAEMON_PORT=$8
-export TAU_KEEP_ALIVE_PORT=$9
-export TAU_LOG_PATH=${10}
-export TAU_MIDI_ENABLED=${11}
-export TAU_LINK_ENABLED=${12}
-export TAU_PHX_PORT=${13}
-export SECRET_KEY_BASE=${14}
-export TAU_DAEMON_TOKEN=${15}
-export TAU_ENV=${16}
+export TAU_LOG_PATH=${9}
+export TAU_MIDI_ENABLED=${10}
+export TAU_LINK_ENABLED=${11}
+export TAU_PHX_PORT=${12}
+export SECRET_KEY_BASE=${13}
+export TAU_DAEMON_TOKEN=${14}
+export TAU_ENV=${15}
 export MIX_ENV=$TAU_ENV
 
-if [ $TAU_ENV = "dev" ]
+if [ $TAU_ENV = "prod" ]
 then
+  _build/prod/rel/tau/bin/tau start > /dev/null 2>&1
+elif [ $TAU_ENV = "dev" ]
+then
+  mix assets.deploy.dev
+  mix run --no-halt > log/tau_stdout.log 2>&1
+elif [ $TAU_ENV = "test" ]
+then
+  export TAU_MIDI_ENABLED=false
+  export TAU_LINK_ENABLED=false
+  mix assets.deploy.dev
   mix run --no-halt > log/tau_stdout.log 2>&1
 else
-  _build/prod/rel/tau/bin/tau start > /dev/null 2>&1
+  echo "Unknown TAU_ENV ${TAU_ENV} - expecting one of prod, dev or test."
 fi

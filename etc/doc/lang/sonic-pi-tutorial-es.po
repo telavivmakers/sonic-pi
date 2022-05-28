@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Sonic Pi\n"
-"PO-Revision-Date: 2021-08-24 12:34+0000\n"
-"Last-Translator: Francisco Jose Rey <fcojreyg@gmail.com>\n"
+"PO-Revision-Date: 2022-04-13 22:12+0000\n"
+"Last-Translator: Edgar Delgado <edelve_2001@hotmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/sonic-pi/"
 "tutorial/es/>\n"
 "Language: es\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 4.8.1-dev\n"
+"X-Generator: Weblate 4.12-dev\n"
 
 #: 01-Welcome-to-Sonic-Pi.md:1
 msgid "1 Welcome to Sonic Pi"
@@ -2698,8 +2698,8 @@ msgid ""
 "Now go and have fun putting envelopes over the samples. Try changing the rate "
 "too for really interesting results."
 msgstr ""
-"Ahora ve y diviértete poniendo sobres en los sampleos. Intenta cambiar la velo"
-"cidad, también para unos resultados realmente interesantes."
+"Ahora ve y diviértete poniendo envolventes en los sampleos. Intenta cambiar "
+"la velocidad, también para unos resultados realmente interesantes."
 
 #: 03.5-Partial-Samples.md:1
 #, fuzzy
@@ -2769,17 +2769,16 @@ msgid "Choosing a starting point"
 msgstr "Escogiendo un punto de inicio"
 
 #: 03.5-Partial-Samples.md:41
-#, fuzzy
 msgid ""
 "It is possible to choose an arbitrary starting point in the sample as a value "
 "between 0 and 1 where 0 is the start of the sample, 1 is the end and 0.5 is ha"
 "lf way through the sample. Let's try playing only the last half of the amen br"
 "eak:"
 msgstr ""
-"Es posible elegir un punto de inicio arbitrario en el sampleo con un valor ent"
-"re 0 y 1, donde 0 es el punto de comienzo, 1 es el punto de final y 0.5 es la "
-"mitad del sampleo. Intentemos ejecutar únicamente la última mitad del sampleo "
-"de amen break:"
+"Es posible elegir un punto de inicio arbitrario en el sampleo con un valor "
+"entre 0 y 1, donde 0 es el punto de comienzo, 1 es el punto de final y 0.5 "
+"es la mitad del sampleo. Intentemos ejecutar únicamente la última mitad del "
+"sampleo de amen break:"
 
 #: 03.5-Partial-Samples.md:46
 #, no-wrap
@@ -2787,7 +2786,6 @@ msgid "sample :loop_amen, start: 0.5"
 msgstr "sample :loop_amen, start: 0.5"
 
 #: 03.5-Partial-Samples.md:50
-#, fuzzy
 msgid "How about the last quarter of the sample:"
 msgstr "¿Qué tal escuchar el último cuarto del sample?:"
 
@@ -2797,7 +2795,6 @@ msgid "sample :loop_amen, start: 0.75"
 msgstr "sample :loop_amen, start: 0.75"
 
 #: 03.5-Partial-Samples.md:56
-#, fuzzy
 msgid "Choosing a finish point"
 msgstr "Escogiendo punto de termino"
 
@@ -5702,6 +5699,19 @@ msgid ""
 " racing to do something different to the same variable and every time round a "
 "different loop 'wins'."
 msgstr ""
+"En el ejemplo anterior asignamos un anillo de números a una variable `a` y "
+"luego lo usamos dentro de dos` live_loop`s separados. En el primer bucle en "
+"vivo cada `0.5`s ordenamos el anillo (a` (ring 1, 2, 3, 4, 5, 6) `) y luego "
+"lo imprimimos en el registro. Si ejecuta el código, verá que ¡la lista "
+"impresa * no está siempre ordenada! *. Esto puede sorprenderle, "
+"especialmente que a veces la lista se imprime como ordenada, y otras no. "
+"Esto se llama comportamiento no determinista y es el resultado de un "
+"problema bastante desagradable llamado condición de raza. El problema se "
+"debe al hecho de que el segundo bucle en vivo también está manipulando la "
+"lista (en este caso, mezclándola) y para el momento en que se imprime la "
+"lista, a veces simplemente se ha ordenado y, a veces, se ha barajado. Ambos "
+"bucles en vivo están compitiendo para hacer algo diferente a la misma "
+"variable y cada vez que un ciclo diferente 'gana'."
 
 #: 05.6-Variables.md:168
 #, fuzzy
@@ -7017,14 +7027,12 @@ msgstr ""
 "end"
 
 #: 07.3-Sliding-Parameters.md:65
-#, fuzzy
 msgid ""
 "Now have fun sliding things around for smooth transitions and flowing control."
 ".."
 msgstr ""
-"Ve y diviértete deslizando todo para unas transiciones suaves y control fluído"
-"... Now have fun sliding things around for smooth transitions and flowing cont"
-"rol..."
+"Ve y diviértete deslizando todo para unas transiciones suaves y control "
+"fluído..."
 
 #: 08-Data-Structures.md:1
 #, fuzzy
@@ -7969,14 +7977,15 @@ msgstr ""
 "or 2 (asume que el anillo sólo contiene números)"
 
 #: 08.5-Ring-Chains.md:84
+#, fuzzy
 msgid ""
 "Of course, those chain methods that take numbers can take other numbers too! S"
 "o feel free to call `.drop(5)` instead of `.drop(3)` if you want to drop the f"
 "irst 5 elements."
 msgstr ""
-"Por supuesto, estos métodos para cadenas con números, ¡pueden utilizar otros n"
-"úmros cualquiera! Así que, siéntete libre de llamar `.drop(5)` en vez de `.dro"
-"p(3)` si quieres quitar los primeros 5 elementos."
+"Por supuesto, estos métodos para cadenas con números, ¡pueden utilizar otros "
+"números cualquiera! Así que, siéntete libre de llamar `.drop(5)` en vez de `."
+"drop(3)` si quieres quitar los primeros 5 elementos."
 
 #: 09-Live-Coding.md:1
 #, fuzzy
@@ -8598,15 +8607,14 @@ msgstr ""
 "end"
 
 #: 09.3-Multiple-Live-Loops.md:77
-#, fuzzy
 msgid ""
 "We're not quite finished yet though - you'll notice that the beats don't quite"
 " line up correctly. This is because the loops are *out of phase*. Let's fix th"
 "at by syncing one to the other:"
 msgstr ""
-"Todavía no terminamos, pues notarás que los pulsos no se alinean correctamente"
-". Esto se debe a que los bucles están desfasados *out of phase*. Arreglemos Es"
-"to sincronizándolos entre sí:"
+"Todavía no terminamos, pues notarás que los pulsos no se alinean "
+"correctamente. Esto se debe a que los bucles están desfasados *out of phase*"
+". Arreglemos esto sincronizándolos entre sí:"
 
 #: 09.3-Multiple-Live-Loops.md:81
 #, no-wrap

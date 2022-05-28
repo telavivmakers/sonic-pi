@@ -3,7 +3,6 @@
 #include "qt_api_client.h"
 #include "config.h"
 #include "mainwindow.h"
-#include "visualizer/scope.h"
 #include "sonicpitheme.h"
 
 #include "sonicpilog.h"
@@ -222,6 +221,16 @@ void QtAPIClient::Version(const VersionInfo& info)
 void QtAPIClient::Buffer(const BufferInfo& info)
 {
     QMetaObject::invokeMethod(this, "BufferGui", Qt::QueuedConnection, Q_ARG(SonicPi::BufferInfo, info));
+}
+
+void QtAPIClient::ActiveLinks(const int numLinks)
+{
+  emit UpdateNumActiveLinks(numLinks);
+}
+
+void QtAPIClient::BPM(const double bpm)
+{
+  emit UpdateBPM(bpm);
 }
 
 } // namespace SonicPi

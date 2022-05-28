@@ -1752,7 +1752,7 @@ end"
         return [].ring if start == finish
 
         raise ArgumentError, "step size: opt for fn range should be a non-zero number" unless step_size != 0
-        
+
         step_size = step_size.abs
         res = []
         cur = start
@@ -3581,7 +3581,87 @@ You can see the 'buckets' that the numbers between 0 and 1 fall into with the fo
   cue :quux # cue is displayed in log
   "]
 
+      def link_sync(*args)
+        sync "/link/start" unless @tau_api.link_is_playing?
+        link(*args)
+      end
+      doc name:          :link_sync,
+          introduced:    Version.new(4,0,0),
+          summary:       "Use Ableton Link network metronome with automatic session and phase syncing.",
+          doc:           "Similar to link except it also waits for the link session to be playing. If it is, then it behaves identially to link. If the session is not playing, then link_sync will first wait until the session has started before then continuing as if just link had been called.
 
+See link for further details and usage.",
+         args:          [[:quantum, :number],
+                         [:phase, :number]],
+         opts:           nil,
+         accepts_block:  false,
+         requires_block: false,
+         examples: [""]
+
+      def link(*args)
+        params, opts = split_params_and_merge_opts_array(args)
+        quantum = params[0] || opts.fetch(:quantum, 4)
+        phase = params[1] || opts.fetch(:phase, 0)
+
+        # Schedule messages
+        __schedule_delayed_blocks_and_messages!
+
+        __system_thread_locals.set_local(:sonic_pi_spider_time_state_cache, [])
+        __system_thread_locals.set_local(:sonic_pi_local_last_sync, nil)
+        use_bpm :link
+
+        beat, time = @tau_api.link_get_beat_and_clock_time_at_phase(phase, quantum)
+
+        sat = current_sched_ahead_time
+
+        __system_thread_locals.set(:sonic_pi_spider_bpm, :link)
+        __change_spider_time_and_beat!(time - sat, beat)
+
+        new_vt = __get_spider_time.to_f
+        now = Time.now.to_f
+        t = (new_vt - now).to_f - 0.2
+        Kernel.sleep t if t > 0.2
+        __system_thread_locals.set(:sonic_pi_spider_slept, true)
+
+        ## reset control deltas now that time has advanced
+        __system_thread_locals.set_local :sonic_pi_local_control_deltas, {}
+      end
+      doc name:          :link,
+          introduced:    Version.new(4,0,0),
+          summary:       "Use Ableton Link network metronome with automatic phase syncing.",
+          doc:           "By default link waits for the start of the next bar of the shared network metronome link. You can choose how many beats there are in a bar by setting the quantum option and/or which beat to wait for by setting the phase option.
+
+By default, the phase to sync on is 0 and the quantum (max number of beats) is 4.
+
+Also switches BPM to :link mode so there is no explicit need to call use_bpm :link.  The time and beat set to match the network Link metronome.
+
+This function will block the current thread until the next matching phase as if `sleep` had been called with the exact sleep time
+
+If the quantum is 4 (the default) this suggests there are 4 beats in each bar. If the phase is set to 0 (also the default) this means that calling link will sleep until the very start of the next bar before continuing.
+
+This can be used to sync multiple instances of Sonic Pi running on different computers connected to the same network (via wifi or ethernet). It can also be used to share and coordinate time with other apps and devices. For a full list of link-compatible apps and devices see:  https://www.ableton.com/en/link/products/
+
+For other related link functions see link_sync, use_bpm :link, set_link_bpm!
+",
+          args:          [[:quantum, :number],
+                          [:phase, :number]],
+          opts:          nil,
+          accepts_block: false,
+          requires_block: false,
+          examples:      ["
+use_bpm 120      # bpm is at 120
+link             # wait for the start of the next bar before continuing
+                 # (where each bar has 4 beats)
+puts current_bpm #=> :link (not 120)
+  ",
+        "
+link 8 # wait for the start of the next bar
+       # (where each bar has 8 beats)
+",
+        "
+link 7, 2 # wait for the 2nd beat of the next bar
+          # (where each bar has 7 beats)
+"      ]
 
 
       def set_link_bpm!(bpm)
@@ -4213,40 +4293,42 @@ puts current_sched_ahead_time # Prints 0.5"]
 
         # Schedule messages
         __schedule_delayed_blocks_and_messages!
-        return if beats == 0
-        __system_thread_locals.set(:sonic_pi_spider_slept, true)
+        __system_thread_locals.set(:sonic_pi_spider_slept, true) if beats != 0
         __change_spider_beat_and_time_by_beat_delta!(beats)
-
-        sat = current_sched_ahead_time
-        new_vt = __get_spider_time.to_r
-        now = Time.now.to_f
 
         in_time_warp = __system_thread_locals.get(:sonic_pi_spider_in_time_warp)
 
-        if (now - (sat + 0.5)) > new_vt
+        return if in_time_warp
 
-          # raise TimingError, "Timing Exception: thread got too far behind time
+        sat = current_sched_ahead_time
+        new_vt = __get_spider_time.to_f
+        now = Time.now.to_f
+
+        if (now - (sat + 1)) > new_vt
           __delayed_serious_warning "Serious timing error. Too far behind time..."
+          raise TimingError, "Timing Exception: thread got too far behind time"
         elsif (now - sat) > new_vt
           __delayed_serious_warning "Timing error: can't keep up..."
         elsif now > new_vt
-          ## TODO: Remove this and replace with a much better silencing system which
-          ## is implemented within the __delayed_* fns
           unless __thread_locals.get(:sonic_pi_mod_sound_synth_silent) || in_time_warp
             __delayed_warning "Timing warning: running slightly behind..."
           end
-        else
-          if in_time_warp
-            # Don't sleep if within a time warp
-            #
-            # However, do make sure the vt hasn't got too far ahead of the real time
-            # raise TimingError, "Timing Exception: thread got too far ahead of time" if  (new_vt - 17) > now
-          else
-            t = (new_vt - now).to_f
-            Kernel.sleep t
-          end
         end
+        sleep_t = (new_vt - now).to_f - 0.2
+        return if sleep_t < 0.2
 
+        if __in_link_bpm_mode
+          @tau_api.link_sleep(sleep_t) do
+            # this code runs if the sleep was short-circuited
+            __change_spider_beat_and_time_by_beat_delta!(0)
+          end
+          post_sleep_vt = __get_spider_time.to_f
+          sleep_t = (post_sleep_vt - Time.now.to_f).to_f - 0.2
+          return if sleep_t < 0.2
+          sleep 0
+        else
+          Kernel.sleep sleep_t
+        end
 
         ## reset control deltas now that time has advanced
         __system_thread_locals.set_local :sonic_pi_local_control_deltas, {}
@@ -4386,12 +4468,13 @@ puts current_sched_ahead_time # Prints 0.5"]
         __system_thread_locals.set_local :sonic_pi_local_last_sync, se
 
         __system_thread_locals.set(:sonic_pi_spider_synced, true)
-
+        bpm_mode = current_bpm_mode
+        __change_spider_bpm_time_and_beat!(60, se.time, se.beat) if __in_link_bpm_mode
         if bpm_sync
           raise StandardError, "Incorrect bpm value. Expecting either :link or a number such as 120" unless ((se.bpm == :link) || se.bpm.is_a?(Numeric))
           __change_spider_bpm_time_and_beat!(se.bpm, se.time, se.beat)
         else
-          __change_spider_bpm_time_and_beat!(current_bpm_mode, se.time, se.beat)
+          __change_spider_bpm_time_and_beat!(bpm_mode, se.time, se.beat)
         end
 
         run_info = ""

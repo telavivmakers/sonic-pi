@@ -18,6 +18,7 @@ class QLineEdit;
 class QButtonGroup;
 class QSignalMapper;
 class QVBoxLayout;
+class QSizePolicy;
 
 class SettingsWidget : public QWidget
 {
@@ -33,8 +34,6 @@ public:
     void updateScopeNames(std::vector<QString>);
     void updateSelectedUILanguage(QString lang);
 
-    QSize sizeHint() const;
-
 public slots:
     void updateUILanguage(int index);
 
@@ -49,6 +48,7 @@ private slots:
     void showAutoCompletion();
     void toggleLog();
     void toggleCuesLog();
+    void toggleMetro();
     void toggleButtons();
     void toggleFullScreen();
     void toggleTabs();
@@ -56,9 +56,11 @@ private slots:
     void updateColourTheme();
     void toggleScope();
     void toggleScopeLabels();
-    void toggleScope( QWidget* qw );
+    void toggleScope( QObject* qo );
+    void toggleTitles();
     void openSonicPiNet();
     void toggleCheckUpdates();
+    void toggleHideMenuBarInFullscreen();
     void checkForUpdatesNow();
     void updateSettings();
     void updateTransparency(int t);
@@ -85,6 +87,7 @@ signals:
     void showAutoCompletionChanged();
     void showLogChanged();
     void showCuesChanged();
+    void showMetroChanged();
     void showButtonsChanged();
     void showFullscreenChanged();
     void showTabsChanged();
@@ -92,6 +95,8 @@ signals:
     void themeChanged();
     void scopeChanged();
     void scopeLabelsChanged();
+    void titlesChanged();
+    void hideMenuBarInFullscreenChanged();
     void scopeChanged(QString name);
     void transparencyChanged(int t);
     void checkUpdatesChanged();
@@ -131,6 +136,7 @@ private:
     QCheckBox* goto_buffer_shortcuts;
     QCheckBox *show_log;
     QCheckBox *show_cues;
+    QCheckBox *show_metro;
     QCheckBox *show_buttons;
     QCheckBox *show_tabs;
     QCheckBox *check_updates;
@@ -153,6 +159,8 @@ private:
     QSignalMapper *scopeSignalMap;
     QCheckBox *show_scope_labels;
     QCheckBox *show_scopes;
+    QCheckBox *show_titles;
+    QCheckBox *hide_menubar_in_fullscreen;
     QVBoxLayout *scope_box_kinds_layout;
 
     QPushButton *check_updates_now;

@@ -38,9 +38,13 @@ public:
     virtual void Midi(const SonicPi::MidiInfo& info) override;
     virtual void Version(const SonicPi::VersionInfo& info) override;
     virtual void Buffer(const BufferInfo& info) override;
+    virtual void ActiveLinks(const int numLinks) override;
+    virtual void BPM(const double bpm) override;
 
 signals:
     void ConsumeAudioData(const SonicPi::ProcessedAudio& audio);
+    void UpdateNumActiveLinks(const int numLinks);
+    void UpdateBPM(const double bpm);
 
 public slots:
     virtual void ReportGui(const SonicPi::MessageInfo& message);
